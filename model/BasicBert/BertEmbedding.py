@@ -41,7 +41,7 @@ class PositionalEmbedding(nn.Module):
 class TokenEmbedding(nn.Module):
     def __init__(self, vocab_size: int, emb_size):
         super(TokenEmbedding, self).__init__()
-        self.embedding = nn.Embedding(vocab_size, emb_size)
+        self.embedding = nn.Embedding(vocab_size, emb_size, padding_idx=0)
         self.emb_size = emb_size
 
     """
@@ -55,9 +55,8 @@ class TokenEmbedding(nn.Module):
 
 class SegmentEmbedding(nn.Embedding):
     def __init__(self, embed_size=512):
-        super().__init__(num_embeddings=3,
-                         embedding_dim=embed_size,
-                         padding_idx=0)
+        super().__init__(num_embeddings=2,
+                         embedding_dim=embed_size)
 
 
 class BERTEmbedding(nn.Module):
@@ -69,25 +68,24 @@ class BERTEmbedding(nn.Module):
         sum of all these features are output of BERTEmbedding
     """
 
-    def __init__(self, vocab_size, embed_size, dropout=0.1):
-        """
-        :param vocab_size: total vocab size
-        :param embed_size: embedding size of token embedding
-        :param dropout: dropout rate
-        """
+    def __init__(self, config):
         super().__init__()
-        self.token = TokenEmbedding(vocab_size=vocab_size, emb_size=embed_size)  # [src_len,batch_size,embed_size]
-        self.position = PositionalEmbedding(d_model=embed_size)  # [src_len,1,embed_size]
-        self.segment = SegmentEmbedding(embed_size=embed_size)  # [src_len,batch_size,embed_size]
-        self.dropout = nn.Dropout(p=dropout)
-        self.embed_size = embed_size
+        self.token = TokenEmbedding(vocab_size=config.vocab_size,
+                                    emb_size=config.hidden_size)
+        # [src_len,batch_size,embed_size]
+        self.position = PositionalEmbedding(d_model=config.hidden_size,
+                                            max_len=config.max_position_embeddings)  # [src_len,1,embed_size]
+        self.segment = SegmentEmbedding(embed_size=config.hidden_size)  # [src_len,batch_size,embed_size]
+        self.dropout = nn.Dropout(p=config.hidden_dropout_prob)
 
-    def forward(self, sequence, segment_label):
+    def forward(self, input_ids, token_type_ids=None):
         """
-        :param sequence: # [src_len,batch_size]
-        :param segment_label: # [src_len,batch_size]
+        :param input_ids: # [src_len,batch_size]
+        :param token_type_ids: # [src_len,batch_size]
         :return:
         """
-        x = self.token(sequence) + self.position(sequence) + self.segment(segment_label)
+        if token_type_ids is None:
+            token_type_ids = torch.zeros_like(input_ids)
+        x = self.token(input_ids) + self.position(input_ids) + self.segment(token_type_ids)
         # [src_len,batch_size,embed_size] + [src_len,1,embed_size] + [src_len,batch_size,embed_size]
         return self.dropout(x)  # [src_len, batch_size, embed_size]
