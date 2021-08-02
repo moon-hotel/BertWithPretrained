@@ -1,91 +1,149 @@
 import torch.nn as nn
 import torch
-import math
+from torch.nn.init import normal_
 
 
 class PositionalEmbedding(nn.Module):
-    r"""Inject some information about the relative or absolute position of the tokens
-        in the sequence. The positional encodings have the same dimension as
-        the embeddings, so that the two can be summed. Here, we use sine and cosine
-        functions of different frequencies.
-    .. math::
-        \text{PosEncoder}(pos, 2i) = sin(pos/10000^(2i/d_model))
-        \text{PosEncoder}(pos, 2i+1) = cos(pos/10000^(2i/d_model))
-        \text{where pos is the word position and i is the embed idx)
-    Args:
-        d_model: the embed dim (required).
-        max_len: the max. length of the incoming sequence (default=5000).
-    Examples:
-        #>>> pos_encoder = PositionalEmbedding(d_model)
+    """
+    位置编码。
+      *** 注意： Bert中的位置编码完全不同于Transformer中的位置编码，
+                前者本质上也是一个普通的Embedding层，而后者是通过公式计算得到，
+                而这也是为什么Bert只能接受长度为512字符的原因，因为位置编码的size为512 ***
+      # Since the position embedding table is a learned variable, we create it
+      # using a (long) sequence length `max_position_embeddings`. The actual
+      # sequence length might be shorter than this, for faster training of
+      # tasks that do not have long sequences.
     """
 
-    def __init__(self, d_model, max_len=5000):
+    def __init__(self, hidden_size, max_position_embeddings=512, initializer_range=0.02):
         super(PositionalEmbedding, self).__init__()
-        pe = torch.zeros(max_len, d_model)  # [max_len, d_model]
-        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)  # [max_len, 1]
-        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))  # [d_model/2]
-        pe[:, 0::2] = torch.sin(position * div_term)  # [max_len, d_model/2]
-        pe[:, 1::2] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(0).transpose(0, 1)  # [max_len, 1, d_model]
-        self.register_buffer('pe', pe)
+        self.embedding = nn.Embedding(max_position_embeddings, hidden_size)
+        self._reset_parameters(initializer_range)
 
-    def forward(self, x):  # [x_len, batch_size, d_model]
+    def forward(self, position_ids):
         """
-        :param x: [x_len, batch_size, emb_size]
-        :return: [x_len, batch_size, emb_size]
+        :param position_ids: [1,position_ids]
+        :return: [position_ids_len, 1, hidden_size]
         """
-        x = self.pe[:x.size(0), :]  # [src_len, 1, d_model]
-        return x  # [src_len, 1, d_model]
+        return self.embedding(position_ids).transpose(0, 1)
+
+    def _reset_parameters(self, initializer_range):
+        r"""Initiate parameters."""
+        """
+        初始化
+        """
+        for p in self.parameters():
+            if p.dim() > 1:
+                normal_(p, mean=0.0, std=initializer_range)
 
 
 class TokenEmbedding(nn.Module):
-    def __init__(self, vocab_size: int, emb_size):
+    def __init__(self, vocab_size, hidden_size, pad_token_id=0, initializer_range=0.02):
         super(TokenEmbedding, self).__init__()
-        self.embedding = nn.Embedding(vocab_size, emb_size, padding_idx=0)
-        self.emb_size = emb_size
+        self.embedding = nn.Embedding(vocab_size, hidden_size, padding_idx=pad_token_id)
+        self._reset_parameters(initializer_range)
 
-    """
-        :param tokens: shape : [len, batch_size]
-        :return: shape: [len, batch_size, emb_size]
+    def forward(self, input_ids):
+        """
+        :param input_ids: shape : [input_ids_len, batch_size]
+        :return: shape: [input_ids_len, batch_size, hidden_size]
+        """
+        return self.embedding(input_ids)
+
+    def _reset_parameters(self, initializer_range):
+        r"""Initiate parameters."""
+        """
+        初始化
+        """
+        for p in self.parameters():
+            if p.dim() > 1:
+                normal_(p, mean=0.0, std=initializer_range)
+
+
+class SegmentEmbedding(nn.Module):
+    def __init__(self, type_vocab_size, hidden_size, initializer_range=0.02):
+        super(SegmentEmbedding, self).__init__()
+        self.embedding = nn.Embedding(type_vocab_size, hidden_size)
+        self._reset_parameters(initializer_range)
+
+    def forward(self, token_type_ids):
         """
 
-    def forward(self, tokens):
-        return self.embedding(tokens.long()) * math.sqrt(self.emb_size)
+        :param token_type_ids:  shape: [token_type_ids_len, batch_size]
+        :return: shape: [token_type_ids_len, batch_size, hidden_size]
+        """
+        return self.embedding(token_type_ids)
+
+    def _reset_parameters(self, initializer_range):
+        r"""Initiate parameters."""
+        """
+        初始化
+        """
+        for p in self.parameters():
+            if p.dim() > 1:
+                normal_(p, mean=0.0, std=initializer_range)
 
 
-class SegmentEmbedding(nn.Embedding):
-    def __init__(self, embed_size=512):
-        super().__init__(num_embeddings=2,
-                         embedding_dim=embed_size)
-
-
-class BERTEmbedding(nn.Module):
+class BertEmbeddings(nn.Module):
     """
     BERT Embedding which is consisted with under features
         1. TokenEmbedding : normal embedding matrix
-        2. PositionalEmbedding : adding positional information using sin, cos
+        2. PositionalEmbedding : normal embedding matrix
         2. SegmentEmbedding : adding sentence segment info, (sent_A:1, sent_B:2)
         sum of all these features are output of BERTEmbedding
     """
 
     def __init__(self, config):
         super().__init__()
-        self.token = TokenEmbedding(vocab_size=config.vocab_size,
-                                    emb_size=config.hidden_size)
-        # [src_len,batch_size,embed_size]
-        self.position = PositionalEmbedding(d_model=config.hidden_size,
-                                            max_len=config.max_position_embeddings)  # [src_len,1,embed_size]
-        self.segment = SegmentEmbedding(embed_size=config.hidden_size)  # [src_len,batch_size,embed_size]
-        self.dropout = nn.Dropout(p=config.hidden_dropout_prob)
+        self.word_embeddings = TokenEmbedding(vocab_size=config.vocab_size,
+                                              hidden_size=config.hidden_size,
+                                              pad_token_id=config.pad_token_id,
+                                              initializer_range=config.initializer_range)
+        # return shape [src_len,batch_size,hidden_size]
 
-    def forward(self, input_ids, token_type_ids=None):
+        self.position_embeddings = PositionalEmbedding(max_position_embeddings=config.max_position_embeddings,
+                                                       hidden_size=config.hidden_size,
+                                                       initializer_range=config.initializer_range)
+        # return shape [src_len,1,hidden_size]
+
+        self.token_type_embeddings = SegmentEmbedding(type_vocab_size=config.type_vocab_size,
+                                                      hidden_size=config.hidden_size,
+                                                      initializer_range=config.initializer_range)
+        # return shape  [src_len,batch_size,hidden_size]
+
+        self.LayerNorm = nn.LayerNorm(config.hidden_size)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.register_buffer("position_ids",
+                             torch.arange(config.max_position_embeddings).expand((1, -1)))
+        # shape: [1, max_position_embeddings]
+
+    def forward(self,
+                input_ids=None,
+                position_ids=None,
+                token_type_ids=None):
         """
-        :param input_ids: # [src_len,batch_size]
-        :param token_type_ids: # [src_len,batch_size]
+        :param input_ids:  输入序列的原始token id, shape: [src_len, batch_size]
+        :param position_ids: 位置序列，本质就是 [0,1,2,3,...,src_len-1], shape: [src_len,batch_size]
+        :param token_type_ids: 句子分隔token, 例如[0,0,0,0,1,1,1,1]用于区分两个句子
         :return:
         """
+        src_len = input_ids.size(0)
+        token_embedding = self.word_embeddings(input_ids)
+        # shape:[src_len,batch_size,hidden_size]
+
+        if position_ids is None:
+            position_ids = self.position_ids[:, :src_len]  # [1,src_len]
+        positional_embedding = self.position_embeddings(position_ids)
+        # [src_len, 1, hidden_size]
+
         if token_type_ids is None:
-            token_type_ids = torch.zeros_like(input_ids)
-        x = self.token(input_ids) + self.position(input_ids) + self.segment(token_type_ids)
-        # [src_len,batch_size,embed_size] + [src_len,1,embed_size] + [src_len,batch_size,embed_size]
-        return self.dropout(x)  # [src_len, batch_size, embed_size]
+            token_type_ids = torch.zeros_like(input_ids,
+                                              device=self.position_ids.device)  # [src_len, batch_size]
+        segment_embedding = self.token_type_embeddings(token_type_ids)
+        # [src_len,batch_size,hidden_size]
+
+        embeddings = token_embedding + positional_embedding + segment_embedding
+        # [src_len,batch_size,hidden_size] + [src_len,1,hidden_size] + [src_len,batch_size,hidden_size]
+        embeddings = self.LayerNorm(embeddings)  # [src_len, batch_size, hidden_size]
+        embeddings = self.dropout(embeddings)
+        return embeddings
