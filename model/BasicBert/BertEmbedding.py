@@ -22,7 +22,7 @@ class PositionalEmbedding(nn.Module):
 
     def forward(self, position_ids):
         """
-        :param position_ids: [1,position_ids]
+        :param position_ids: [1,position_ids_len]
         :return: [position_ids_len, 1, hidden_size]
         """
         return self.embedding(position_ids).transpose(0, 1)
@@ -123,9 +123,9 @@ class BertEmbeddings(nn.Module):
                 token_type_ids=None):
         """
         :param input_ids:  输入序列的原始token id, shape: [src_len, batch_size]
-        :param position_ids: 位置序列，本质就是 [0,1,2,3,...,src_len-1], shape: [src_len,batch_size]
-        :param token_type_ids: 句子分隔token, 例如[0,0,0,0,1,1,1,1]用于区分两个句子
-        :return:
+        :param position_ids: 位置序列，本质就是 [0,1,2,3,...,src_len-1], shape: [1,src_len]
+        :param token_type_ids: 句子分隔token, 例如[0,0,0,0,1,1,1,1]用于区分两个句子 shape:[src_len,batch_size]
+        :return: [src_len, batch_size, hidden_size]
         """
         src_len = input_ids.size(0)
         token_embedding = self.word_embeddings(input_ids)
