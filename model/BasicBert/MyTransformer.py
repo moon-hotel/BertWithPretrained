@@ -273,23 +273,17 @@ class MyMultiheadAttention(nn.Module):
         assert self.head_dim * num_heads == self.embed_dim, "embed_dim 除以 num_heads必须为整数"
         # 上面的限制条件就是论文中的  d_k = d_v = d_model/n_head 条件
 
-        self.q_proj_weight = Parameter(torch.Tensor(embed_dim, embed_dim))  # embed_dim = kdim * num_heads
-        # 这里第二个维度之所以是embed_dim，实际上这里是同时初始化了num_heads个W_q堆叠起来的, 也就是num_heads个头
-        self.k_proj_weight = Parameter(torch.Tensor(embed_dim, embed_dim))  # W_k,  embed_dim = kdim * num_heads
-        self.v_proj_weight = Parameter(torch.Tensor(embed_dim, embed_dim))  # W_v,  embed_dim = vdim * num_heads
+        # self.q_proj_weight = Parameter(torch.Tensor(embed_dim, embed_dim))  # embed_dim = kdim * num_heads
+        # # 这里第二个维度之所以是embed_dim，实际上这里是同时初始化了num_heads个W_q堆叠起来的, 也就是num_heads个头
+        # self.k_proj_weight = Parameter(torch.Tensor(embed_dim, embed_dim))  # W_k,  embed_dim = kdim * num_heads
+        # self.v_proj_weight = Parameter(torch.Tensor(embed_dim, embed_dim))  # W_v,  embed_dim = vdim * num_heads
 
+        self.q_proj = nn.Linear(embed_dim, embed_dim, bias=bias)  # embed_dim = kdim * num_heads
+        # 这里第二个维度之所以是embed_dim，实际上这里是同时初始化了num_heads个W_q堆叠起来的, 也就是num_heads个头
+        self.k_proj = nn.Linear(embed_dim, embed_dim, bias=bias)  # W_k,  embed_dim = kdim * num_heads
+        self.v_proj = nn.Linear(embed_dim, embed_dim, bias=bias)  # W_v,  embed_dim = vdim * num_heads
         self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
         # 最后将所有的Z组合起来的时候，也是一次性完成， embed_dim = vdim * num_heads
-        self._reset_parameters()
-
-    def _reset_parameters(self):
-        """
-        以特定方式来初始化参数
-        :return:
-        """
-        xavier_uniform_(self.q_proj_weight)
-        xavier_uniform_(self.k_proj_weight)
-        xavier_uniform_(self.v_proj_weight)
 
     def forward(self, query, key, value, attn_mask=None, key_padding_mask=None):
         """
@@ -306,12 +300,13 @@ class MyMultiheadAttention(nn.Module):
         attn_output_weights: # [batch_size, tgt_len, src_len]
         """
         return multi_head_attention_forward(query, key, value, self.num_heads,
-                                            self.dropout, self.out_proj.weight, self.out_proj.bias,
+                                            self.dropout,
+                                            self.out_proj.weight, self.out_proj.bias,
                                             training=self.training,
                                             key_padding_mask=key_padding_mask,
-                                            q_proj_weight=self.q_proj_weight,
-                                            k_proj_weight=self.k_proj_weight,
-                                            v_proj_weight=self.v_proj_weight,
+                                            q_proj=self.q_proj,
+                                            k_proj=self.k_proj,
+                                            v_proj=self.v_proj,
                                             attn_mask=attn_mask)
 
 
@@ -324,18 +319,18 @@ def multi_head_attention_forward(query,  # [tgt_len,batch_size, embed_dim]
                                  out_proj_bias,
                                  training=True,
                                  key_padding_mask=None,  # [batch_size,src_len/tgt_len]
-                                 q_proj_weight=None,  # [embed_dim,kdim * num_heads]
-                                 k_proj_weight=None,  # [embed_dim, kdim * num_heads]
-                                 v_proj_weight=None,  # [embed_dim, vdim * num_heads]
+                                 q_proj=None,  # weight: [embed_dim,kdim * num_heads]  , bias: [embed_dim]
+                                 k_proj=None,  # weight: [embed_dim,kdim * num_heads]  , bias: [embed_dim]
+                                 v_proj=None,  # weight: [embed_dim,kdim * num_heads]  , bias: [embed_dim]
                                  attn_mask=None,  # [tgt_len,src_len] or [num_heads*batch_size,tgt_len, src_len]
                                  ):
-    q = F.linear(query, q_proj_weight)
+    q = F.linear(query, q_proj.weight, q_proj.bias)
     #  [tgt_len,batch_size, embed_dim] x [embed_dim,kdim * num_heads] = [tgt_len,batch_size,kdim * num_heads]
 
-    k = F.linear(key, k_proj_weight)
+    k = F.linear(key, k_proj.weight, k_proj.bias)
     # [src_len, batch_size, embed_dim] x [embed_dim, kdim * num_heads] = [src_len, batch_size, kdim * num_heads]
 
-    v = F.linear(value, v_proj_weight)
+    v = F.linear(value, v_proj.weight, v_proj.bias)
     # [src_len, batch_size, embed_dim] x [embed_dim, vdim * num_heads] = [src_len, batch_size, vdim * num_heads]
     tgt_len, bsz, embed_dim = query.size()  # [tgt_len,batch_size, embed_dim]
     src_len = key.size(0)
