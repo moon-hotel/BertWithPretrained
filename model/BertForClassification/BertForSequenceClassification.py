@@ -7,7 +7,7 @@ class BertForSequenceClassification(nn.Module):
         super(BertForSequenceClassification, self).__init__()
         self.num_labels = num_labels
         if bert_pretrained_model_dir is not None:
-            self.bert = BertModel.from_pretrained()
+            self.bert = BertModel.from_pretrained(bert_pretrained_model_dir)
         else:
             self.bert = BertModel(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
@@ -30,12 +30,12 @@ class BertForSequenceClassification(nn.Module):
         pooled_output, _ = self.bert(input_ids=input_ids,
                                      attention_mask=attention_mask,
                                      token_type_ids=token_type_ids,
-                                     position_ids=position_ids)
+                                     position_ids=position_ids)  # [batch_size,hidden_size]
         pooled_output = self.dropout(pooled_output)
         logits = self.classifier(pooled_output)
         if labels is not None:
             loss_fct = nn.CrossEntropyLoss()
             loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-            return loss
+            return loss, logits
         else:
             return logits
