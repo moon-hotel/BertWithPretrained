@@ -32,7 +32,7 @@ class BertForSequenceClassification(nn.Module):
                                      token_type_ids=token_type_ids,
                                      position_ids=position_ids)  # [batch_size,hidden_size]
         pooled_output = self.dropout(pooled_output)
-        logits = self.classifier(pooled_output)
+        logits = self.classifier(pooled_output) # [batch_size, num_label]
         if labels is not None:
             loss_fct = nn.CrossEntropyLoss()
             loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
