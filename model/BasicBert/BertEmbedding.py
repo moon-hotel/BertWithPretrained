@@ -8,11 +8,13 @@ class PositionalEmbedding(nn.Module):
     位置编码。
       *** 注意： Bert中的位置编码完全不同于Transformer中的位置编码，
                 前者本质上也是一个普通的Embedding层，而后者是通过公式计算得到，
-                而这也是为什么Bert只能接受长度为512字符的原因，因为位置编码的size为512 ***
+                而这也是为什么Bert只能接受长度为512字符的原因，因为位置编码的最大size为512 ***
       # Since the position embedding table is a learned variable, we create it
       # using a (long) sequence length `max_position_embeddings`. The actual
       # sequence length might be shorter than this, for faster training of
       # tasks that do not have long sequences.
+                                                 ————————  GoogleResearch
+    https://github.com/google-research/bert/blob/eedf5716ce1268e56f0a50264a88cafad334ac61/modeling.py
     """
 
     def __init__(self, hidden_size, max_position_embeddings=512, initializer_range=0.02):
