@@ -49,14 +49,14 @@ class BertSelfAttention(nn.Module):
         attn_output: [tgt_len, batch_size, hidden_size]
         attn_output_weights: # [batch_size, tgt_len, src_len]
         """
-        return self.multi_head_attention(query, key, value, attn_mask, key_padding_mask)
+        return self.multi_head_attention(query, key, value, attn_mask=attn_mask, key_padding_mask=key_padding_mask)
 
 
 class BertSelfOutput(nn.Module):
     def __init__(self, config):
         super().__init__()
         # self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        self.LayerNorm = nn.LayerNorm(config.hidden_size)
+        self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=1e-12)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
     def forward(self, hidden_states, input_tensor):
@@ -123,7 +123,7 @@ class BertOutput(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.dense = nn.Linear(config.intermediate_size, config.hidden_size)
-        self.LayerNorm = nn.LayerNorm(config.hidden_size)
+        self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=1e-12)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
     def forward(self, hidden_states, input_tensor):
@@ -261,7 +261,7 @@ class BertModel(nn.Module):
     def from_pretrained(cls, pretrained_model_dir=None):
         config_path = os.path.join(pretrained_model_dir, "config.json")
         config = BertConfig.from_json_file(config_path)
-        model = cls(config)  # 初始化模型
+        model = cls(config)  # 初始化模型，cls为未实例化的对象
         pretrained_model_path = os.path.join(pretrained_model_dir, "pytorch_model.bin")
         loaded_paras = torch.load(pretrained_model_path)
         state_dict = deepcopy(model.state_dict())
