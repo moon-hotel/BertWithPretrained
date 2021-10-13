@@ -40,17 +40,21 @@ class ModelConfig:
         bert_config = BertConfig.from_json_file(bert_config_path)
         for key, value in bert_config.__dict__.items():
             self.__dict__[key] = value
+        # 将当前配置打印到日志文件中
+        self.logger.info("\n\n\n\n\n########  <----------------------->")
+        for key, value in self.__dict__.items():
+            self.logger.info(f"########  {key} = {value}")
 
 
 def train(config):
     classification_model = BertForSequenceClassification(config,
                                                          config.num_labels,
                                                          config.pretrained_model_dir)
-    model_save_path = os.path.join(config.model_save_dir, 'model.pkl')
+    model_save_path = os.path.join(config.model_save_dir, 'model.pt')
     if os.path.exists(model_save_path):
         loaded_paras = torch.load(model_save_path)
         classification_model.load_state_dict(loaded_paras)
-        print("## 成功载入已有模型，进行追加训练......")
+        config.logger.info("## 成功载入已有模型，进行追加训练......")
     classification_model = classification_model.to(config.device)
     optimizer = torch.optim.Adam(classification_model.parameters(), lr=0.0001)
     classification_model.train()
@@ -86,30 +90,31 @@ def train(config):
             acc = (logits.argmax(1) == label).float().mean()
             max_acc = max(acc, max_acc)
             if idx % 10 == 0:
-                print(
-                    f"Epoch: {epoch}, Batch[{idx}/{len(train_iter)}], Train loss :{loss.item():.3f}, Train acc: {acc:.3f}")
+                config.logger.info(f"Epoch: {epoch}, Batch[{idx}/{len(train_iter)}], "
+                              f"Train loss :{loss.item():.3f}, Train acc: {acc:.3f}")
         end_time = time.time()
         train_loss = losses / len(train_iter)
-        print(f"Epoch: {epoch}, Train loss: {train_loss:.3f}, Epoch time = {(end_time - start_time):.3f}s")
+        config.logger.info(f"Epoch: {epoch}, Train loss: {train_loss:.3f}, Epoch time = {(end_time - start_time):.3f}s")
         if (epoch + 1) % config.model_save_per_epoch == 0:
             acc = evaluate(test_iter, classification_model, config.device)
-            print(f"Accuracy on test {acc:.3f}")
+            config.logger.info(f"Accuracy on test {acc:.3f}")
             if acc > max_acc:
                 torch.save(classification_model.state_dict(), model_save_path)
 
 
-def test(config):
+def inference(config):
     classification_model = BertForSequenceClassification(config,
                                                          config.num_labels,
                                                          config.pretrained_model_dir)
-    model_save_path = os.path.join(config.model_save_dir, 'model.pkl')
+    model_save_path = os.path.join(config.model_save_dir, 'model.pt')
     if os.path.exists(model_save_path):
         loaded_paras = torch.load(model_save_path)
         classification_model.load_state_dict(loaded_paras)
-        print("## 成功载入已有模型，进行追加训练......")
+        config.logger.info("## 成功载入已有模型，进行追加训练......")
     classification_model = classification_model.to(config.device)
     data_loader = LoadClassificationDataset(vocab_path=config.vocab_path,
-                                            tokenizer=BertTokenizer.from_pretrained(config.pretrained_model_dir).tokenize,
+                                            tokenizer=BertTokenizer.from_pretrained(
+                                                config.pretrained_model_dir).tokenize,
                                             batch_size=config.batch_size,
                                             max_sen_len=config.max_sen_len,
                                             split_sep=config.split_sep,
@@ -119,7 +124,7 @@ def test(config):
                                                                            config.val_file_path,
                                                                            config.test_file_path)
     acc = evaluate(test_iter, classification_model, device=config.device)
-    print(f"Acc on test:{acc:.3f}")
+    config.logger.info(f"Acc on test:{acc:.3f}")
 
 
 def evaluate(data_iter, model, device):
@@ -137,4 +142,5 @@ def evaluate(data_iter, model, device):
 
 if __name__ == '__main__':
     model_config = ModelConfig()
-    train(model_config)
+    # train(model_config)
+    # inference(model_config)
