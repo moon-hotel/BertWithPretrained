@@ -2,9 +2,10 @@ import logging
 import os
 from datetime import datetime
 
+
 class Logger(object):
 
-    def __init__(self, log_file_name, log_level, logger_name = "debug",log_dir = './logs/'):
+    def __init__(self, log_file_name, log_level=logging.WARN, logger_name="debug", log_dir='./logs/'):
         # 创建一个logger
         self.__logger = logging.getLogger(logger_name)
 
@@ -15,7 +16,7 @@ class Logger(object):
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
         # 创建一个handler用于写入日志文件
-        log_path = os.path.join(log_dir,log_file_name+'_'+str(datetime.now())[:10]+'.txt')
+        log_path = os.path.join(log_dir, log_file_name + '_' + str(datetime.now())[:10] + '.txt')
         file_handler = logging.FileHandler(log_path)
 
         # 创建一个handler用于输出控制台
