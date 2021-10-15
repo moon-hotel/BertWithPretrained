@@ -30,8 +30,7 @@ class ModelConfig:
         self.num_labels = 15
         self.epochs = 10
         self.model_save_per_epoch = 2
-        self.logger = Logger(log_file_name='test', log_level=logging.DEBUG, log_dir=self.logs_save_dir).get_log()
-
+        self.logger = Logger(log_file_name='test', log_level=logging.INFO, log_dir=self.logs_save_dir).get_log()
         if not os.path.exists(self.model_save_dir):
             os.makedirs(self.model_save_dir)
 
@@ -56,7 +55,7 @@ def train(config):
         classification_model.load_state_dict(loaded_paras)
         config.logger.info("## 成功载入已有模型，进行追加训练......")
     classification_model = classification_model.to(config.device)
-    optimizer = torch.optim.Adam(classification_model.parameters(), lr=0.0001)
+    optimizer = torch.optim.Adam(classification_model.parameters(), lr=5e-5)
     classification_model.train()
     bert_tokenize = BertTokenizer.from_pretrained(model_config.pretrained_model_dir).tokenize
     data_loader = LoadClassificationDataset(vocab_path=config.vocab_path,
@@ -88,17 +87,17 @@ def train(config):
             optimizer.step()
             losses += loss.item()
             acc = (logits.argmax(1) == label).float().mean()
-            max_acc = max(acc, max_acc)
             if idx % 10 == 0:
                 config.logger.info(f"Epoch: {epoch}, Batch[{idx}/{len(train_iter)}], "
-                              f"Train loss :{loss.item():.3f}, Train acc: {acc:.3f}")
+                                   f"Train loss :{loss.item():.3f}, Train acc: {acc:.3f}")
         end_time = time.time()
         train_loss = losses / len(train_iter)
         config.logger.info(f"Epoch: {epoch}, Train loss: {train_loss:.3f}, Epoch time = {(end_time - start_time):.3f}s")
         if (epoch + 1) % config.model_save_per_epoch == 0:
-            acc = evaluate(test_iter, classification_model, config.device)
-            config.logger.info(f"Accuracy on test {acc:.3f}")
+            acc = evaluate(val_iter, classification_model, config.device)
+            config.logger.info(f"Accuracy on val {acc:.3f}")
             if acc > max_acc:
+                max_acc = acc
                 torch.save(classification_model.state_dict(), model_save_path)
 
 
@@ -110,7 +109,7 @@ def inference(config):
     if os.path.exists(model_save_path):
         loaded_paras = torch.load(model_save_path)
         classification_model.load_state_dict(loaded_paras)
-        config.logger.info("## 成功载入已有模型，进行追加训练......")
+        config.logger.info("## 成功载入已有模型，进行预测......")
     classification_model = classification_model.to(config.device)
     data_loader = LoadClassificationDataset(vocab_path=config.vocab_path,
                                             tokenizer=BertTokenizer.from_pretrained(
