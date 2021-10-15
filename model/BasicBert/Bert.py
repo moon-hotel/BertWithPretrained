@@ -3,7 +3,6 @@ from torch.nn.init import normal_
 from .BertEmbedding import BertEmbeddings
 from .MyTransformer import MyMultiheadAttention
 import torch.nn as nn
-from .BertConfig import BertConfig
 import os
 from copy import deepcopy
 
@@ -258,10 +257,8 @@ class BertModel(nn.Module):
                 normal_(p, mean=0.0, std=self.config.initializer_range)
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_dir=None):
-        config_path = os.path.join(pretrained_model_dir, "config.json")
-        config = BertConfig.from_json_file(config_path)
-        model = cls(config)  # 初始化模型，cls为未实例化的对象
+    def from_pretrained(cls, config, pretrained_model_dir=None):
+        model = cls(config)  # 初始化模型，cls为未实例化的对象，即一个未实例化的BertModel对象
         pretrained_model_path = os.path.join(pretrained_model_dir, "pytorch_model.bin")
         loaded_paras = torch.load(pretrained_model_path)
         state_dict = deepcopy(model.state_dict())
@@ -269,6 +266,6 @@ class BertModel(nn.Module):
         model_paras_names = list(state_dict.keys())[1:]
         for i in range(len(loaded_paras_names)):
             state_dict[model_paras_names[i]] = loaded_paras[loaded_paras_names[i]]
-            print(f"成功将参数{loaded_paras_names[i]}赋值给{model_paras_names[i]}")
+        config.logger.info(f"成功将参数{loaded_paras_names[i]}赋值给{model_paras_names[i]}")
         model.load_state_dict(state_dict)
         return model
