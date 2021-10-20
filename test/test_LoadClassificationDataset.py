@@ -14,7 +14,8 @@ if __name__ == '__main__':
         max_sen_len=model_config.max_sen_len,
         split_sep=model_config.split_sep,
         max_position_embeddings=model_config.max_position_embeddings,
-        pad_index=model_config.pad_token_id)
+        pad_index=model_config.pad_token_id,
+        is_sample_shuffle=model_config.is_sample_shuffle)
 
     train_iter, test_iter, val_iter = \
         load_dataset.load_train_val_test_data(model_config.train_file_path,
@@ -27,4 +28,3 @@ if __name__ == '__main__':
         # print(padding_mask)
         # print(label)
         break
-    print(model_config.vocab_size)

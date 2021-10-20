@@ -19,17 +19,18 @@ class ModelConfig:
         self.pretrained_model_dir = os.path.join(self.project_dir, "pretrained_model")
         self.vocab_path = os.path.join(self.pretrained_model_dir, 'vocab.txt')
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-        self.train_file_path = os.path.join(self.dataset_dir, 'toutiao_data_test.txt')
-        self.val_file_path = os.path.join(self.dataset_dir, 'toutiao_data_test.txt')
-        self.test_file_path = os.path.join(self.dataset_dir, 'toutiao_data_test.txt')
+        self.train_file_path = os.path.join(self.dataset_dir, 'toutiao_train.txt')
+        self.val_file_path = os.path.join(self.dataset_dir, 'toutiao_val.txt')
+        self.test_file_path = os.path.join(self.dataset_dir, 'test.txt')
         self.model_save_dir = os.path.join(self.project_dir, 'cache')
         self.logs_save_dir = os.path.join(self.project_dir, 'logs')
         self.split_sep = '_!_'
+        self.is_sample_shuffle = False
         self.batch_size = 64
         self.max_sen_len = None
         self.num_labels = 15
         self.epochs = 10
-        self.model_save_per_epoch = 2
+        self.model_val_per_epoch = 2
         self.logger = Logger(log_file_name='test', log_level=logging.INFO, log_dir=self.logs_save_dir).get_log()
         if not os.path.exists(self.model_save_dir):
             os.makedirs(self.model_save_dir)
@@ -93,7 +94,7 @@ def train(config):
         end_time = time.time()
         train_loss = losses / len(train_iter)
         config.logger.info(f"Epoch: {epoch}, Train loss: {train_loss:.3f}, Epoch time = {(end_time - start_time):.3f}s")
-        if (epoch + 1) % config.model_save_per_epoch == 0:
+        if (epoch + 1) % config.model_val_per_epoch == 0:
             acc = evaluate(val_iter, classification_model, config.device)
             config.logger.info(f"Accuracy on val {acc:.3f}")
             if acc > max_acc:
@@ -118,7 +119,8 @@ def inference(config):
                                             max_sen_len=config.max_sen_len,
                                             split_sep=config.split_sep,
                                             max_position_embeddings=config.max_position_embeddings,
-                                            pad_index=config.pad_token_id)
+                                            pad_index=config.pad_token_id,
+                                            is_sample_shuffle=config.is_sample_shuffle)
     train_iter, test_iter, val_iter = data_loader.load_train_val_test_data(config.train_file_path,
                                                                            config.val_file_path,
                                                                            config.test_file_path)
@@ -141,5 +143,5 @@ def evaluate(data_iter, model, device):
 
 if __name__ == '__main__':
     model_config = ModelConfig()
-    # train(model_config)
+    train(model_config)
     # inference(model_config)

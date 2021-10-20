@@ -81,7 +81,8 @@ class LoadClassificationDataset:
                  max_sen_len=None,
                  split_sep='\n',
                  max_position_embeddings=512,
-                 pad_index=0
+                 pad_index=0,
+                 is_sample_shuffle=True
                  ):
 
         """
@@ -95,6 +96,8 @@ class LoadClassificationDataset:
                             当max_sen_len = 50， 表示以某个固定长度符样本进行padding，多余的截掉；
         :param split_sep: 文本和标签之前的分隔符，默认为'\t'
         :param max_position_embeddings: 指定最大样本长度，超过这个长度的部分将本截取掉
+        :param is_sample_shuffle: 是否打乱样本
+
         """
         self.tokenizer = tokenizer
         self.vocab = build_vocab(vocab_path)
@@ -109,6 +112,7 @@ class LoadClassificationDataset:
         if isinstance(max_sen_len, int) and max_sen_len > max_position_embeddings:
             max_sen_len = max_position_embeddings
         self.max_sen_len = max_sen_len
+        self.is_sample_shuffle = is_sample_shuffle
 
     def data_process(self, filepath):
         """
@@ -138,11 +142,11 @@ class LoadClassificationDataset:
         val_data, _ = self.data_process(val_file_path)
         test_data, _ = self.data_process(test_file_path)
         train_iter = DataLoader(train_data, batch_size=self.batch_size,  # 构造DataLoader
-                                shuffle=True, collate_fn=self.generate_batch)
+                                shuffle=self.is_sample_shuffle, collate_fn=self.generate_batch)
         val_iter = DataLoader(val_data, batch_size=self.batch_size,
-                              shuffle=True, collate_fn=self.generate_batch)
+                              shuffle=self.is_sample_shuffle, collate_fn=self.generate_batch)
         test_iter = DataLoader(test_data, batch_size=self.batch_size,
-                               shuffle=True, collate_fn=self.generate_batch)
+                               shuffle=self.is_sample_shuffle, collate_fn=self.generate_batch)
         return train_iter, test_iter, val_iter
 
     def generate_batch(self, data_batch):
