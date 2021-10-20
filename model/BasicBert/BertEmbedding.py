@@ -133,12 +133,12 @@ class BertEmbeddings(nn.Module):
         token_embedding = self.word_embeddings(input_ids)
         # shape:[src_len,batch_size,hidden_size]
 
-        if position_ids is None:
+        if position_ids is None: # 在实际建模时这个参数其实可以不用传值
             position_ids = self.position_ids[:, :src_len]  # [1,src_len]
         positional_embedding = self.position_embeddings(position_ids)
         # [src_len, 1, hidden_size]
 
-        if token_type_ids is None:
+        if token_type_ids is None: # 如果输入模型的只有一个序列，那么这个参数也不用传值
             token_type_ids = torch.zeros_like(input_ids,
                                               device=self.position_ids.device)  # [src_len, batch_size]
         segment_embedding = self.token_type_embeddings(token_type_ids)

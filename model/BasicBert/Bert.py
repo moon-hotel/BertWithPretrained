@@ -151,7 +151,7 @@ class BertLayer(nn.Module):
         """
 
         :param hidden_states: [src_len, batch_size, hidden_size]
-        :param attention_mask: [batch_size, src_len]
+        :param attention_mask: [batch_size, src_len] mask掉padding部分的内容
         :return: [src_len, batch_size, hidden_size]
         """
         attention_output = self.bert_attention(hidden_states, attention_mask)
@@ -232,9 +232,9 @@ class BertModel(nn.Module):
         """
 
         :param input_ids:  [src_len, batch_size]
-        :param attention_mask: [batch_size, src_len]
-        :param token_type_ids: [batch_size, src_len]
-        :param position_ids: [1,src_len]
+        :param attention_mask: [batch_size, src_len] mask掉padding部分的内容
+        :param token_type_ids: [batch_size, src_len]  # 如果输入模型的只有一个序列，那么这个参数也不用传值
+        :param position_ids: [1,src_len] # 在实际建模时这个参数其实可以不用传值
         :return:
         """
         embedding_output = self.bert_embeddings(input_ids=input_ids,
