@@ -1,7 +1,7 @@
 import sys
 
 sys.path.append('../')
-from Tasks.TaskForSequenceClassification import ModelConfig
+from Tasks.TaskForSingleSentenceClassification import ModelConfig
 from utils.data_helpers import LoadClassificationDataset
 from transformers import BertTokenizer
 

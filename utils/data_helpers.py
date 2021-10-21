@@ -102,8 +102,8 @@ class LoadClassificationDataset:
         self.tokenizer = tokenizer
         self.vocab = build_vocab(vocab_path)
         self.PAD_IDX = pad_index
-
-        self.CLS = self.vocab['[CLS]']
+        self.SEP_IDX = self.vocab['[SEP]']
+        self.CLS_IDX = self.vocab['[CLS]']
         # self.UNK_IDX = '[UNK]'
 
         self.batch_size = batch_size
@@ -126,9 +126,10 @@ class LoadClassificationDataset:
         for raw in raw_iter:
             line = raw.rstrip("\n").split(self.split_sep)
             s, l = line[0], line[1]
-            tmp = [self.CLS] + [self.vocab[token] for token in self.tokenizer(s)]
-            if len(tmp) > self.max_position_embeddings:
-                tmp = tmp[:self.max_position_embeddings]  # BERT预训练模型只取前512个字符
+            tmp = [self.CLS_IDX] + [self.vocab[token] for token in self.tokenizer(s)]
+            if len(tmp) > self.max_position_embeddings - 1:
+                tmp = tmp[:self.max_position_embeddings - 1]  # BERT预训练模型只取前512个字符
+            tmp += [self.SEP_IDX]
             tensor_ = torch.tensor(tmp, dtype=torch.long)
             l = torch.tensor(int(l), dtype=torch.long)
             max_len = max(max_len, tensor_.size(0))
