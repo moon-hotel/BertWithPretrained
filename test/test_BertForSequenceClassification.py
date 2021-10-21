@@ -1,7 +1,7 @@
 import sys
 
 sys.path.append('../')
-from model.BertForClassification.BertForSequenceClassification import BertForSequenceClassification
+from model.BertForClassification.BertForSingleSentenceClassification import BertForSequenceClassification
 from model.BasicBert.BertConfig import BertConfig
 
 json_file = '../pretrained_model/config.json'

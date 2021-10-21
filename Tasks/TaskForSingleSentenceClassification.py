@@ -1,7 +1,7 @@
 import sys
 
 sys.path.append('../')
-from model.BertForClassification.BertForSequenceClassification import BertForSequenceClassification
+from model.BertForClassification.BertForSingleSentenceClassification import BertForSingleSentenceClassification
 from model.BasicBert.BertConfig import BertConfig
 from utils.data_helpers import LoadClassificationDataset
 from utils.log_helper import Logger
@@ -15,7 +15,7 @@ import time
 class ModelConfig:
     def __init__(self):
         self.project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        self.dataset_dir = os.path.join(self.project_dir, 'data')
+        self.dataset_dir = os.path.join(self.project_dir, 'data', 'SingleSentenceClassification')
         self.pretrained_model_dir = os.path.join(self.project_dir, "pretrained_model")
         self.vocab_path = os.path.join(self.pretrained_model_dir, 'vocab.txt')
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -47,9 +47,9 @@ class ModelConfig:
 
 
 def train(config):
-    classification_model = BertForSequenceClassification(config,
-                                                         config.num_labels,
-                                                         config.pretrained_model_dir)
+    classification_model = BertForSingleSentenceClassification(config,
+                                                               config.num_labels,
+                                                               config.pretrained_model_dir)
     model_save_path = os.path.join(config.model_save_dir, 'model.pt')
     if os.path.exists(model_save_path):
         loaded_paras = torch.load(model_save_path)
@@ -103,9 +103,9 @@ def train(config):
 
 
 def inference(config):
-    classification_model = BertForSequenceClassification(config,
-                                                         config.num_labels,
-                                                         config.pretrained_model_dir)
+    classification_model = BertForSingleSentenceClassification(config,
+                                                               config.num_labels,
+                                                               config.pretrained_model_dir)
     model_save_path = os.path.join(config.model_save_dir, 'model.pt')
     if os.path.exists(model_save_path):
         loaded_paras = torch.load(model_save_path)

@@ -2,9 +2,9 @@ from ..BasicBert.Bert import BertModel
 import torch.nn as nn
 
 
-class BertForSequenceClassification(nn.Module):
+class BertForSingleSentenceClassification(nn.Module):
     def __init__(self, config, num_labels, bert_pretrained_model_dir=None):
-        super(BertForSequenceClassification, self).__init__()
+        super(BertForSingleSentenceClassification, self).__init__()
         self.num_labels = num_labels
         if bert_pretrained_model_dir is not None:
             self.bert = BertModel.from_pretrained(config, bert_pretrained_model_dir)
