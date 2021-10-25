@@ -9,7 +9,7 @@ from model.BasicBert.BertConfig import BertConfig
 import torch
 
 if __name__ == '__main__':
-    json_file = '../pretrained_model/config.json'
+    json_file = '../bert_base_chinese/config.json'
     config = BertConfig.from_json_file(json_file)
     src = torch.tensor([[1, 3, 5, 7, 9], [2, 4, 6, 8, 10]], dtype=torch.long)
     src = src.transpose(0, 1)  # [src_len, batch_size]
