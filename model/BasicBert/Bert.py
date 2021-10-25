@@ -233,7 +233,7 @@ class BertModel(nn.Module):
 
         :param input_ids:  [src_len, batch_size]
         :param attention_mask: [batch_size, src_len] mask掉padding部分的内容
-        :param token_type_ids: [batch_size, src_len]  # 如果输入模型的只有一个序列，那么这个参数也不用传值
+        :param token_type_ids: [src_len, batch_size]  # 如果输入模型的只有一个序列，那么这个参数也不用传值
         :param position_ids: [1,src_len] # 在实际建模时这个参数其实可以不用传值
         :return:
         """
@@ -266,6 +266,6 @@ class BertModel(nn.Module):
         model_paras_names = list(state_dict.keys())[1:]
         for i in range(len(loaded_paras_names)):
             state_dict[model_paras_names[i]] = loaded_paras[loaded_paras_names[i]]
-        config.logger.info(f"成功将参数{loaded_paras_names[i]}赋值给{model_paras_names[i]}")
+            config.logger.info(f"成功将参数{loaded_paras_names[i]}赋值给{model_paras_names[i]}")
         model.load_state_dict(state_dict)
         return model
