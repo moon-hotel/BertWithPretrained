@@ -73,7 +73,7 @@ def pad_sequence(sequences, batch_first=False, max_len=None, padding_value=0):
     return out_tensors
 
 
-class LoadClassificationDataset:
+class LoadSingleSentenceClassificationDataset:
     def __init__(self,
                  vocab_path='./vocab.txt',  #
                  tokenizer=None,
@@ -161,3 +161,53 @@ class LoadClassificationDataset:
                                       max_len=self.max_sen_len)
         batch_label = torch.tensor(batch_label, dtype=torch.long)
         return batch_sentence, batch_label
+
+
+class LoadPairSentenceClassificationDataset(LoadSingleSentenceClassificationDataset):
+    def __init__(self, **kwargs):
+        super(LoadPairSentenceClassificationDataset, self).__init__(**kwargs)
+        pass
+
+    def data_process(self, filepath):
+        """
+        将每一句话中的每一个词根据字典转换成索引的形式，同时返回所有样本中最长样本的长度
+        :param filepath: 数据集路径
+        :return:
+        """
+        raw_iter = iter(open(filepath))
+        data = []
+        max_len = 0
+        for raw in raw_iter:
+            line = raw.rstrip("\n").split(self.split_sep)
+            s1, s2, l = line[0], line[1], line[2]
+            token1 = [self.vocab[token] for token in self.tokenizer(s1)]
+            seg1 = [0] * (len(token1) + 2)
+            token2 = [self.vocab[token] for token in self.tokenizer(s2)]
+            tmp = [self.CLS_IDX] + token1 + [self.SEP_IDX] + token2
+            if len(tmp) > self.max_position_embeddings - 1:
+                tmp = tmp[:self.max_position_embeddings - 1]  # BERT预训练模型只取前512个字符
+            tmp += [self.SEP_IDX]
+            seg2 = [1] * (len(tmp) - len(seg1))
+            segs = torch.tensor(seg1 + seg2, dtype=torch.long)
+            tensor_ = torch.tensor(tmp, dtype=torch.long)
+            l = torch.tensor(int(l), dtype=torch.long)
+            max_len = max(max_len, tensor_.size(0))
+            data.append((tensor_, segs, l))
+        return data, max_len
+
+    def generate_batch(self, data_batch):
+        batch_sentence, batch_seg, batch_label = [], [], []
+        for (sen, seg, label) in data_batch:  # 开始对一个batch中的每一个样本进行处理。
+            batch_sentence.append(sen)
+            batch_seg.append((seg))
+            batch_label.append(label)
+        batch_sentence = pad_sequence(batch_sentence,  # [batch_size,max_len]
+                                      padding_value=self.PAD_IDX,
+                                      batch_first=False,
+                                      max_len=self.max_sen_len)  # [max_len,batch_size]
+        batch_seg = pad_sequence(batch_seg,  # [batch_size,max_len]
+                                 padding_value=self.PAD_IDX,
+                                 batch_first=False,
+                                 max_len=self.max_sen_len)  # [batch_size,max_len]
+        batch_label = torch.tensor(batch_label, dtype=torch.long)
+        return batch_sentence, batch_seg, batch_label
