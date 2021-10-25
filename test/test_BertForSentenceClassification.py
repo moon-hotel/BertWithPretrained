@@ -1,10 +1,10 @@
 import sys
 
 sys.path.append('../')
-from model.BertForClassification.BertForSingleSentenceClassification import BertForSequenceClassification
+from model.BertForClassification.BertForSentenceClassification import BertForSentenceClassification
 from model.BasicBert.BertConfig import BertConfig
 
 json_file = '../pretrained_model/config.json'
 config = BertConfig.from_json_file(json_file)
-model = BertForSequenceClassification(config,10)
+model = BertForSentenceClassification(config, 10)
 print(model)
