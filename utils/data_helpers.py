@@ -1,5 +1,6 @@
 import torch
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 
 class Vocab:
@@ -120,10 +121,10 @@ class LoadSingleSentenceClassificationDataset:
         :param filepath: 数据集路径
         :return:
         """
-        raw_iter = iter(open(filepath, encoding="utf8"))
+        raw_iter = open(filepath, encoding="utf8").readlines()
         data = []
         max_len = 0
-        for raw in raw_iter:
+        for raw in tqdm(raw_iter, ncols=80):
             line = raw.rstrip("\n").split(self.split_sep)
             s, l = line[0], line[1]
             tmp = [self.CLS_IDX] + [self.vocab[token] for token in self.tokenizer(s)]
@@ -174,10 +175,10 @@ class LoadPairSentenceClassificationDataset(LoadSingleSentenceClassificationData
         :param filepath: 数据集路径
         :return:
         """
-        raw_iter = iter(open(filepath))
+        raw_iter = open(filepath).readlines()
         data = []
         max_len = 0
-        for raw in raw_iter:
+        for raw in tqdm(raw_iter, ncols=80):
             line = raw.rstrip("\n").split(self.split_sep)
             s1, s2, l = line[0], line[1], line[2]
             token1 = [self.vocab[token] for token in self.tokenizer(s1)]
