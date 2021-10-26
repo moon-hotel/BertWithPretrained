@@ -95,7 +95,7 @@ def train(config):
         train_loss = losses / len(train_iter)
         config.logger.info(f"Epoch: {epoch}, Train loss: {train_loss:.3f}, Epoch time = {(end_time - start_time):.3f}s")
         if (epoch + 1) % config.model_val_per_epoch == 0:
-            acc = evaluate(val_iter, classification_model, config.device)
+            acc = evaluate(val_iter, classification_model, config.device, data_loader.PAD_IDX)
             config.logger.info(f"Accuracy on val {acc:.3f}")
             if acc > max_acc:
                 max_acc = acc
@@ -128,13 +128,14 @@ def inference(config):
     config.logger.info(f"Acc on test:{acc:.3f}")
 
 
-def evaluate(data_iter, model, device):
+def evaluate(data_iter, model, device, PAD_IDX):
     model.eval()
     with torch.no_grad():
         acc_sum, n = 0.0, 0
         for x, y in data_iter:
             x, y = x.to(device), y.to(device)
-            logits = model(x)
+            padding_mask = (x == PAD_IDX).transpose(0, 1)
+            logits = model(x, attention_mask=padding_mask)
             acc_sum += (logits.argmax(1) == y).float().sum().item()
             n += len(y)
         model.train()
