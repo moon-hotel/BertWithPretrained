@@ -25,7 +25,7 @@ class ModelConfig:
         self.model_save_dir = os.path.join(self.project_dir, 'cache')
         self.logs_save_dir = os.path.join(self.project_dir, 'logs')
         self.split_sep = '_!_'
-        self.is_sample_shuffle = False
+        self.is_sample_shuffle = True
         self.batch_size = 64
         self.max_sen_len = None
         self.num_labels = 15
