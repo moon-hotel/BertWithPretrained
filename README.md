@@ -79,6 +79,9 @@
  ## 模型详细解析
 - [x] [1. BERT原理与NSL和MLM](https://www.ylkz.life/deeplearning/p10631450/) <br>
 - [ ] [2. BERT模型的分步实现](https://www.ylkz.life)
-- [ ] [3. 基于BERT预训练模型的文本分类任务](https://www.ylkz.life)
-- [ ] [4. 基于BERT预训练模型的文本蕴含任务](https://www.ylkz.life)
+- [ ] [3. 基于BERT预训练模型的中文文本分类任务](https://www.ylkz.life)
+- [ ] [4. 基于BERT预训练模型的英文文本蕴含任务](https://www.ylkz.life)
+- [ ] [5. 基于BERT预训练模型的英文多选项任务](https://www.ylkz.life)
+- [ ] [6. 基于BERT预训练模型的中文问答任务](https://www.ylkz.life)
+- [ ] [7. 基于NSL和MLM任务从头训练BERT任务](https://www.ylkz.life)
 
