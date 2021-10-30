@@ -3,15 +3,15 @@ import torch.nn as nn
 
 
 class BertForSentenceClassification(nn.Module):
-    def __init__(self, config, num_labels, bert_pretrained_model_dir=None):
+    def __init__(self, config, bert_pretrained_model_dir=None):
         super(BertForSentenceClassification, self).__init__()
-        self.num_labels = num_labels
+        self.num_labels = config.num_labels
         if bert_pretrained_model_dir is not None:
             self.bert = BertModel.from_pretrained(config, bert_pretrained_model_dir)
         else:
             self.bert = BertModel(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        self.classifier = nn.Linear(config.hidden_size, num_labels)
+        self.classifier = nn.Linear(config.hidden_size, self.num_labels)
 
     def forward(self, input_ids,
                 attention_mask=None,

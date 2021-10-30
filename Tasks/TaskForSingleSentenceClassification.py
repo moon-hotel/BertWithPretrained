@@ -1,7 +1,7 @@
 import sys
 
 sys.path.append('../')
-from model.BertForClassification.BertForSentenceClassification import BertForSentenceClassification
+from model.DownstreamTasks.BertForSentenceClassification import BertForSentenceClassification
 from model.BasicBert.BertConfig import BertConfig
 from utils.data_helpers import LoadSingleSentenceClassificationDataset
 from utils.log_helper import Logger
@@ -48,7 +48,6 @@ class ModelConfig:
 
 def train(config):
     classification_model = BertForSentenceClassification(config,
-                                                         config.num_labels,
                                                          config.pretrained_model_dir)
     model_save_path = os.path.join(config.model_save_dir, 'model.pt')
     if os.path.exists(model_save_path):
@@ -104,7 +103,6 @@ def train(config):
 
 def inference(config):
     classification_model = BertForSentenceClassification(config,
-                                                         config.num_labels,
                                                          config.pretrained_model_dir)
     model_save_path = os.path.join(config.model_save_dir, 'model.pt')
     if os.path.exists(model_save_path):
@@ -124,7 +122,7 @@ def inference(config):
     train_iter, test_iter, val_iter = data_loader.load_train_val_test_data(config.train_file_path,
                                                                            config.val_file_path,
                                                                            config.test_file_path)
-    acc = evaluate(test_iter, classification_model, device=config.device)
+    acc = evaluate(test_iter, classification_model, device=config.device, PAD_IDX=data_loader.PAD_IDX)
     config.logger.info(f"Acc on test:{acc:.3f}")
 
 

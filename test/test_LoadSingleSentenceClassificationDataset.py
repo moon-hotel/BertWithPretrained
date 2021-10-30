@@ -18,10 +18,9 @@ if __name__ == '__main__':
         is_sample_shuffle=model_config.is_sample_shuffle)
 
     train_iter, test_iter, val_iter = \
-        load_dataset.load_train_val_test_data(model_config.test_file_path,
-                                              model_config.test_file_path,
+        load_dataset.load_train_val_test_data(model_config.train_file_path,
+                                              model_config.val_file_path,
                                               model_config.test_file_path)
-
     for sample, label in train_iter:
         print(sample.shape)  # [seq_len,batch_size]
         print(sample.transpose(0, 1))
