@@ -279,13 +279,15 @@ class LoadMultipleChoiceDataset(LoadSingleSentenceClassificationDataset):
                                 padding_value=self.PAD_IDX,
                                 batch_first=True,
                                 max_len=self.max_sen_len)
+        batch_mask = (batch_qa == self.PAD_IDX).view(
+            [-1, self.num_choice, batch_qa.size(-1)])
         # reshape 至 [batch_size, num_choice, max_len]
-        batch_qa = batch_qa.reshape([-1, self.num_choice, batch_qa.size(-1)])
+        batch_qa = batch_qa.view([-1, self.num_choice, batch_qa.size(-1)])
         batch_seg = pad_sequence(batch_seg,  # [batch_size*num_choice,max_len]
                                  padding_value=self.PAD_IDX,
                                  batch_first=True,
                                  max_len=self.max_sen_len)
         # reshape 至 [batch_size, num_choice, max_len]
-        batch_seg = batch_seg.reshape([-1, self.num_choice, batch_seg.size(-1)])
+        batch_seg = batch_seg.view([-1, self.num_choice, batch_seg.size(-1)])
         batch_label = torch.tensor(batch_label, dtype=torch.long)
-        return batch_qa, batch_seg, batch_label
+        return batch_qa, batch_seg, batch_mask, batch_label

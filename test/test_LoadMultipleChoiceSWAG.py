@@ -28,9 +28,14 @@ if __name__ == '__main__':
         load_dataset.load_train_val_test_data(model_config.train_file_path,
                                               model_config.val_file_path,
                                               model_config.test_file_path)
-    for qa, seg, label in test_iter:
+    for qa, seg, mask, label in test_iter:
+        print(" ### input ids:")
         print(qa.shape)  # [batch_size,num_choice, max_len]
         print(qa[0])
+        print(" ### attention mask:")
+        print(mask.shape)
+        print(mask[0])
+        print(" ### token type ids:")
         print(seg.shape)  # [batch_size,num_choice, max_len]
         print(seg[0])
         print(label.shape)
