@@ -1,6 +1,7 @@
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+import pandas as pd
 
 
 class Vocab:
@@ -182,12 +183,12 @@ class LoadPairSentenceClassificationDataset(LoadSingleSentenceClassificationData
             line = raw.rstrip("\n").split(self.split_sep)
             s1, s2, l = line[0], line[1], line[2]
             token1 = [self.vocab[token] for token in self.tokenizer(s1)]
-            seg1 = [0] * (len(token1) + 2)
             token2 = [self.vocab[token] for token in self.tokenizer(s2)]
             tmp = [self.CLS_IDX] + token1 + [self.SEP_IDX] + token2
             if len(tmp) > self.max_position_embeddings - 1:
                 tmp = tmp[:self.max_position_embeddings - 1]  # BERT预训练模型只取前512个字符
             tmp += [self.SEP_IDX]
+            seg1 = [0] * (len(token1) + 2)  # 2 表示[CLS]和中间的[SEP]这两个字符
             seg2 = [1] * (len(tmp) - len(seg1))
             segs = torch.tensor(seg1 + seg2, dtype=torch.long)
             tensor_ = torch.tensor(tmp, dtype=torch.long)
@@ -209,6 +210,82 @@ class LoadPairSentenceClassificationDataset(LoadSingleSentenceClassificationData
         batch_seg = pad_sequence(batch_seg,  # [batch_size,max_len]
                                  padding_value=self.PAD_IDX,
                                  batch_first=False,
-                                 max_len=self.max_sen_len)  # [batch_size,max_len]
+                                 max_len=self.max_sen_len)  # [max_len, batch_size]
         batch_label = torch.tensor(batch_label, dtype=torch.long)
         return batch_sentence, batch_seg, batch_label
+
+
+class LoadMultipleChoiceDataset(LoadSingleSentenceClassificationDataset):
+    def __init__(self, num_choice=4, **kwargs):
+        super(LoadMultipleChoiceDataset, self).__init__(**kwargs)
+        self.num_choice = num_choice
+
+    def data_process(self, filepath):
+        data = pd.read_csv(filepath)
+        questions = data['startphrase']
+        answers0, answers1 = data['ending0'], data['ending1']
+        answers2, answers3 = data['ending2'], data['ending3']
+        labels = [-1] * len(questions)
+        if 'label' in data:  # 测试集中没有标签
+            labels = data['label']
+        all_data = []
+        max_len = 0
+        for i in tqdm(range(len(questions)), ncols=80):
+            # 将问题中的每个word转换为字典中的token id
+            t_q = [self.vocab[token] for token in self.tokenizer(questions[i])]
+            t_q = [self.CLS_IDX] + t_q + [self.SEP_IDX]
+            # 将答案中的每个word转换为字典中的token id
+            t_a0 = [self.vocab[token] for token in self.tokenizer(answers0[i])]
+            t_a1 = [self.vocab[token] for token in self.tokenizer(answers1[i])]
+            t_a2 = [self.vocab[token] for token in self.tokenizer(answers2[i])]
+            t_a3 = [self.vocab[token] for token in self.tokenizer(answers3[i])]
+            # 计算最长序列的长度
+            max_len = max(max_len, len(t_q) + max(len(t_a0), len(t_a1), len(t_a2), len(t_a3)))
+            seg_q = [0] * len(t_q)
+            # 加1表示还要加上问题和答案组合后最后一个[SEP]的长度
+            seg_a0 = [1] * (len(t_a0) + 1)
+            seg_a1 = [1] * (len(t_a1) + 1)
+            seg_a2 = [1] * (len(t_a2) + 1)
+            seg_a3 = [1] * (len(t_a3) + 1)
+            all_data.append((t_q, t_a0, t_a1, t_a2, t_a3, seg_q,
+                             seg_a0, seg_a1, seg_a2, seg_a3, labels[i]))
+        return all_data, max_len
+
+    def generate_batch(self, data_batch):
+        batch_qa, batch_seg, batch_label = [], [], []
+
+        def get_seq(q, a):
+            seq = q + a
+            if len(seq) > self.max_position_embeddings - 1:
+                seq = seq[:self.max_position_embeddings - 1]
+            return torch.tensor(seq + [self.SEP_IDX], dtype=torch.long)
+
+        for item in data_batch:
+            # 得到 每个问题组合其中一个答案的 input_ids 序列
+            tmp_qa = [get_seq(item[0], item[1]),
+                      get_seq(item[0], item[2]),
+                      get_seq(item[0], item[3]),
+                      get_seq(item[0], item[4])]
+            # 得到 每个问题组合其中一个答案的 token_type_ids
+            tmp_seg = [torch.tensor(item[5] + item[6], dtype=torch.long),
+                       torch.tensor(item[5] + item[7], dtype=torch.long),
+                       torch.tensor(item[5] + item[8], dtype=torch.long),
+                       torch.tensor(item[5] + item[9], dtype=torch.long)]
+            batch_qa.extend(tmp_qa)
+            batch_seg.extend(tmp_seg)
+            batch_label.append(item[-1])
+
+        batch_qa = pad_sequence(batch_qa,  # [batch_size*num_choice,max_len]
+                                padding_value=self.PAD_IDX,
+                                batch_first=True,
+                                max_len=self.max_sen_len)
+        # reshape 至 [batch_size, num_choice, max_len]
+        batch_qa = batch_qa.reshape([-1, self.num_choice, batch_qa.size(-1)])
+        batch_seg = pad_sequence(batch_seg,  # [batch_size*num_choice,max_len]
+                                 padding_value=self.PAD_IDX,
+                                 batch_first=True,
+                                 max_len=self.max_sen_len)
+        # reshape 至 [batch_size, num_choice, max_len]
+        batch_seg = batch_seg.reshape([-1, self.num_choice, batch_seg.size(-1)])
+        batch_label = torch.tensor(batch_label, dtype=torch.long)
+        return batch_qa, batch_seg, batch_label
