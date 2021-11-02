@@ -1,6 +1,7 @@
 import json
 import copy
 import six
+import logging
 
 
 class BertConfig(object):
@@ -12,7 +13,7 @@ class BertConfig(object):
                  num_hidden_layers=12,
                  num_attention_heads=12,
                  intermediate_size=3072,
-                 pad_token_id = 0,
+                 pad_token_id=0,
                  hidden_act="gelu",
                  hidden_dropout_prob=0.1,
                  attention_probs_dropout_prob=0.1,
@@ -48,7 +49,7 @@ class BertConfig(object):
         self.num_attention_heads = num_attention_heads
         self.hidden_act = hidden_act
         self.intermediate_size = intermediate_size
-        self.pad_token_id=pad_token_id
+        self.pad_token_id = pad_token_id
         self.hidden_dropout_prob = hidden_dropout_prob
         self.attention_probs_dropout_prob = attention_probs_dropout_prob
         self.max_position_embeddings = max_position_embeddings
@@ -69,6 +70,7 @@ class BertConfig(object):
         """从json配置文件读取配置信息"""
         with open(json_file, 'r') as reader:
             text = reader.read()
+        logging.info(f"成功从路径{json_file}中导入BERT配置文件！")
         return cls.from_dict(json.loads(text))
 
     def to_dict(self):

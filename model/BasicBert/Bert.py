@@ -4,6 +4,7 @@ from .BertEmbedding import BertEmbeddings
 from .MyTransformer import MyMultiheadAttention
 import torch.nn as nn
 import os
+import logging
 from copy import deepcopy
 
 
@@ -266,6 +267,7 @@ class BertModel(nn.Module):
         model_paras_names = list(state_dict.keys())[1:]
         for i in range(len(loaded_paras_names)):
             state_dict[model_paras_names[i]] = loaded_paras[loaded_paras_names[i]]
-            config.logger.info(f"成功将参数{loaded_paras_names[i]}赋值给{model_paras_names[i]}")
+            logging.info(f"成功将参数{loaded_paras_names[i]}赋值给{model_paras_names[i]},"
+                         f"参数形状为:{state_dict[model_paras_names[i]].size()}")
         model.load_state_dict(state_dict)
         return model
