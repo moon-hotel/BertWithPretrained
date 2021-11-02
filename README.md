@@ -1,8 +1,9 @@
 # BertWithPretrained
-本项目是一个基于PyTorch实现的BERT模型及相关下游任务
+本项目是一个基于PyTorch从零实现的BERT模型及相关下游任务示例
 
 [BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding](https://arxiv.org/abs/1810.04805)
 
+更多关于Transformer内容的介绍可以参考文章[ This post is all you need（层层剥开Transformer）](https://mp.weixin.qq.com/s/uch_AGcSB8OSAeVu2sme8A) ，近4万余字、50张图、3个实战示例，带你一网打尽Transformer！
 ## 工程结构
 - `bert_base_chinese`目录中是BERT base中文预训练模型以及配置文件
 
