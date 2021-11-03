@@ -209,7 +209,7 @@ class BertPooler(nn.Module):
             token_tensor = torch.mean(hidden_states, dim=0)
         pooled_output = self.dense(token_tensor)  # [batch_size, hidden_size]
         pooled_output = self.activation(pooled_output)
-        return pooled_output
+        return pooled_output  # [batch_size, hidden_size]
 
 
 class BertModel(nn.Module):
@@ -241,11 +241,15 @@ class BertModel(nn.Module):
         embedding_output = self.bert_embeddings(input_ids=input_ids,
                                                 position_ids=position_ids,
                                                 token_type_ids=token_type_ids)
+        # embedding_output: [src_len, batch_size, hidden_size]
         all_encoder_outputs = self.bert_encoder(embedding_output,
                                                 attention_mask=attention_mask)
+        # all_encoder_outputs 为一个包含有num_hidden_layers个层的输出
         sequence_output = all_encoder_outputs[-1]  # 取最后一层
+        # sequence_output: [src_len, batch_size, hidden_size]
         pooled_output = self.bert_pooler(sequence_output)
         # 默认是最后一层的first token 即[cls]位置经dense + tanh 后的结果
+        # pooled_output: [batch_size, hidden_size]
         return pooled_output, all_encoder_outputs
 
     def _reset_parameters(self):
@@ -261,6 +265,8 @@ class BertModel(nn.Module):
     def from_pretrained(cls, config, pretrained_model_dir=None):
         model = cls(config)  # 初始化模型，cls为未实例化的对象，即一个未实例化的BertModel对象
         pretrained_model_path = os.path.join(pretrained_model_dir, "pytorch_model.bin")
+        if not os.path.exists(pretrained_model_path):
+            raise ValueError(f"<路径：{pretrained_model_path} 中的模型不存在，请仔细检查！>")
         loaded_paras = torch.load(pretrained_model_path)
         state_dict = deepcopy(model.state_dict())
         loaded_paras_names = list(loaded_paras.keys())[:-8]
