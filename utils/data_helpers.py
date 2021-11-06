@@ -2,6 +2,7 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 import pandas as pd
+import json
 
 
 class Vocab:
@@ -138,18 +139,23 @@ class LoadSingleSentenceClassificationDataset:
             data.append((tensor_, l))
         return data, max_len
 
-    def load_train_val_test_data(self, train_file_path, val_file_path, test_file_path):
+    def load_train_val_test_data(self, train_file_path=None,
+                                 val_file_path=None,
+                                 test_file_path=None,
+                                 only_test=False):
+        test_data, _ = self.data_process(test_file_path)
+        test_iter = DataLoader(test_data, batch_size=self.batch_size,
+                               shuffle=self.is_sample_shuffle, collate_fn=self.generate_batch)
+        if only_test:
+            return test_iter
         train_data, max_sen_len = self.data_process(train_file_path)  # 得到处理好的所有样本
         if self.max_sen_len == 'same':
             self.max_sen_len = max_sen_len
         val_data, _ = self.data_process(val_file_path)
-        test_data, _ = self.data_process(test_file_path)
         train_iter = DataLoader(train_data, batch_size=self.batch_size,  # 构造DataLoader
                                 shuffle=self.is_sample_shuffle, collate_fn=self.generate_batch)
         val_iter = DataLoader(val_data, batch_size=self.batch_size,
                               shuffle=self.is_sample_shuffle, collate_fn=self.generate_batch)
-        test_iter = DataLoader(test_data, batch_size=self.batch_size,
-                               shuffle=self.is_sample_shuffle, collate_fn=self.generate_batch)
         return train_iter, test_iter, val_iter
 
     def generate_batch(self, data_batch):
