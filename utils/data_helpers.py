@@ -3,6 +3,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import pandas as pd
 import json
+import logging
 
 
 class Vocab:
@@ -297,3 +298,80 @@ class LoadMultipleChoiceDataset(LoadSingleSentenceClassificationDataset):
         batch_seg = batch_seg.view([-1, self.num_choice, batch_seg.size(-1)])
         batch_label = torch.tensor(batch_label, dtype=torch.long)
         return batch_qa, batch_seg, batch_mask, batch_label
+
+
+class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset):
+    def __init__(self, **kwargs):
+        super(LoadSQuADQuestionAnsweringDataset, self).__init__(**kwargs)
+        pass
+
+    @staticmethod
+    def get_start_end_position(context, answer_start, text):
+        start_pos, end_pos = 0, 0
+        text = text.strip()
+        for i in range(len(context)):
+            if i < answer_start:
+                if context[i] == ' ' and context[i - 1] != ' ':
+                    start_pos += 1
+                    end_pos = start_pos
+            elif i < answer_start + len(text):
+                if context[i] == ' ' and context[i - 1] != ' ':
+                    end_pos += 1
+            else:
+                break
+        return start_pos, end_pos
+
+    def data_process(self, filepath):
+        with open(filepath, 'r') as f:
+            raw_data = json.loads(f.read())
+            data = raw_data['data']
+        all_data = []
+        max_len = 0
+        for i in tqdm(range(len(data))):  # 遍历每一个paragraphs
+            paragraphs = data[i]['paragraphs']  # 取第i个paragraphs
+            for j in range(len(paragraphs)):  # 遍历第i个paragraphs的每个context
+                context = paragraphs[j]['context']  # 取第j个context
+                qas = paragraphs[j]['qas']  # 取第j个context下的所有 问题-答案 对
+                # 将上下文字符串转换为token id
+                context_ids = [self.vocab[token] for token in self.tokenizer(context)]
+                context_ids = [self.CLS_IDX] + context_ids + [self.SEP_IDX]
+                logging.debug(f"context:{context}")
+                for k in range(len(qas)):  # 遍历第j个个context中的多个 问题-答案 对
+                    answer_start = qas[k]['answers'][0]['answer_start']
+                    text = qas[k]['answers'][0]['text']
+                    question = qas[k]['question']
+                    start_pos, end_pos = self.get_start_end_position(context, answer_start, text)
+                    question_ids = [self.vocab[token] for token in self.tokenizer(question)]
+                    sample = context_ids + question_ids
+                    logging.debug(f"answer_start:{answer_start}")
+                    logging.debug(f"原始答案：{text},<===>与处理后的答案："
+                                  f"{' '.join(context.split()[start_pos:end_pos + 1])}")
+                    if len(sample) > self.max_position_embeddings - 1:
+                        sample = sample[:self.max_position_embeddings - 1]
+                        # BERT预训练模型只取前max_position_embeddings个字符
+                    sample = torch.tensor(sample + [self.SEP_IDX])
+                    seg = [0] * len(context_ids) + [1] * (len(sample) - len(context_ids))
+                    seg = torch.tensor((seg))
+                    max_len = max(max_len, sample.size(0))
+                    # 由于根据token id 转换为文本后的结果与原始context结果差异较大，所以这里也同时保存原始context
+                    all_data.append((sample, seg, start_pos, end_pos, context))
+        return all_data, max_len
+
+    def generate_batch(self, data_batch):
+        batch_con_que, batch_seg, batch_label, contexts = [], [], [], []
+        for item in data_batch:
+            batch_con_que.append(item[0])
+            batch_seg.append(item[1])
+            batch_label.append([item[2], item[3]])
+            contexts.append(item[4])
+        batch_con_que = pad_sequence(batch_con_que,  # [batch_size,max_len]
+                                     padding_value=self.PAD_IDX,
+                                     batch_first=False,
+                                     max_len=self.max_sen_len)  # [max_len,batch_size]
+        batch_seg = pad_sequence(batch_seg,  # [batch_size,max_len]
+                                 padding_value=self.PAD_IDX,
+                                 batch_first=False,
+                                 max_len=self.max_sen_len)  # [max_len, batch_size]
+        batch_label = torch.tensor(batch_label, dtype=torch.long)
+        # [max_len, batch_size] , [max_len, batch_size] , [batch_size,2]
+        return batch_con_que, batch_seg, batch_label, contexts
