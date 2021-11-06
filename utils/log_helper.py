@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 from datetime import datetime
 
 
@@ -19,9 +20,9 @@ def logger_init(log_file_name='monitor',
                             format=formatter,
                             datefmt='%Y-%d-%m %H:%M:%S')
     else:
-        logging.basicConfig(level=logging.INFO,
+        logging.basicConfig(level=log_level,
                             format=formatter,
                             datefmt='%Y-%d-%m %H:%M:%S',
                             handlers=[logging.FileHandler(log_path),
-                                      logging.StreamHandler()]
+                                      logging.StreamHandler(sys.stdout)]
                             )
