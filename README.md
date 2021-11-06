@@ -16,6 +16,8 @@
 - `data`目录中是各个下游任务所使用到的数据集
     - `SingleSentenceClassification`是今日头条的15分类中文数据集；
     - `PairSentenceClassification`是MNLI（The Multi-Genre Natural Language Inference Corpus, 多类型自然语言推理数据库）数据集；
+    - `MultipeChoice`是SWAG问题选择数据集
+    - `SQuAD`是斯坦福大学开源的问答数据集1.1版本
 - `model`目录中是各个模块的实现
     - `BasicBert`中是基础的BERT模型实现模块
         - `MyTransformer.py`是自注意力机制实现部分；
@@ -23,7 +25,9 @@
         - `BertConfig.py`用于导入开源的`config.json`配置文件；
         - `Bert.py`是BERT模型的实现部分；
     - `DownstreamTasks`目录是下游任务各个模块的实现
-        - `BertForSentenceClassification`是单标签句子分类的实现部分；
+        - `BertForSentenceClassification.py`是单标签句子分类的实现部分；
+        - `BertForMultipleChoice.py`是问题选择模型的实现部分；
+        - `BertForQuestionAnswering.py`是问题回答（text span）模型的实现部分；
 - `Task`目录中是各个具体下游任务的训练和推理实现
     - `TaskForSingleSentenceClassification`是单标签单文本分类任务的训练和推理实现，可用于普通的文本分类任务；
     - `TaskForPairSentence`是文本对分类任务的训练和推理实现，可用于蕴含任务（例如MNLI数据集）；
@@ -33,7 +37,7 @@
     - `log_helper.py`是日志打印模块；
     
 ## 使用方式
-1. 下载完成各个数据集，并放入相应的目录中；<br>
+1. 下载完成各个数据集以及相应的BERT预训练模型（如果为空），并放入对应的目录中；<br>
 2. 进入`Tasks`目录，运行相关模型；<br>
 2.1 单文本分类任务
    
