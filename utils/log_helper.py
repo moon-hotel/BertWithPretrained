@@ -18,11 +18,11 @@ def logger_init(log_file_name='monitor',
         logging.basicConfig(filename=log_path,
                             level=log_level,
                             format=formatter,
-                            datefmt='%Y-%d-%m %H:%M:%S')
+                            datefmt='%Y-%m-%d %H:%M:%S')
     else:
         logging.basicConfig(level=log_level,
                             format=formatter,
-                            datefmt='%Y-%d-%m %H:%M:%S',
+                            datefmt='%Y-%m-%d %H:%M:%S',
                             handlers=[logging.FileHandler(log_path),
                                       logging.StreamHandler(sys.stdout)]
                             )
