@@ -70,7 +70,7 @@ class BertConfig(object):
         """从json配置文件读取配置信息"""
         with open(json_file, 'r') as reader:
             text = reader.read()
-        logging.info(f"成功从路径{json_file}中导入BERT配置文件！")
+        logging.info(f"成功导入BERT配置文件 {json_file}")
         return cls.from_dict(json.loads(text))
 
     def to_dict(self):
