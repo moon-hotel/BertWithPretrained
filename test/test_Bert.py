@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 
 if __name__ == '__main__':
-    json_file = '../pretrained_model/config.json'
+    json_file = '../bert_base_chinese/config.json'
     config = BertConfig.from_json_file(json_file)
     src = torch.tensor([[1, 3, 5, 7, 9, 2, 3], [2, 4, 6, 8, 10, 0, 0]], dtype=torch.long)
     src = src.transpose(0, 1)  # [src_len, batch_size]
@@ -55,4 +55,4 @@ if __name__ == '__main__':
         print(param_tensor, "\t", bert_model.state_dict()[param_tensor].size())
 
     print(f"\n  =======  BertModel载入预训练模型： ========")
-    model = BertModel.from_pretrained("../pretrained_model")
+    # model = BertModel.from_pretrained(config,pretrained_model_dir="../bert_base_chinese")

@@ -33,11 +33,11 @@ if __name__ == '__main__':
         print(qa.shape)  # [batch_size,num_choice, max_len]
         print(qa[0])
         print(" ### attention mask:")
-        print(mask.shape)
+        print(mask.shape)  # [batch_size,num_choice, max_len]
         print(mask[0])
         print(" ### token type ids:")
         print(seg.shape)  # [batch_size,num_choice, max_len]
         print(seg[0])
-        print(label.shape)
+        print(label.shape)  # [batch_size]
         trans_to_words(qa[0], load_dataset.vocab.itos)
         break
