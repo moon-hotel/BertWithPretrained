@@ -29,8 +29,9 @@
         - `BertForMultipleChoice.py`是问题选择模型的实现部分；
         - `BertForQuestionAnswering.py`是问题回答（text span）模型的实现部分；
 - `Task`目录中是各个具体下游任务的训练和推理实现
-    - `TaskForSingleSentenceClassification`是单标签单文本分类任务的训练和推理实现，可用于普通的文本分类任务；
-    - `TaskForPairSentence`是文本对分类任务的训练和推理实现，可用于蕴含任务（例如MNLI数据集）；
+    - `TaskForSingleSentenceClassification.py`是单标签单文本分类任务的训练和推理实现，可用于普通的文本分类任务；
+    - `TaskForPairSentence.py`是文本对分类任务的训练和推理实现，可用于蕴含任务（例如MNLI数据集）；
+    - `TaskForMultipleChoice.py`是问答选择任务的训练和推理实现，可用于问答选择任务（例如SWAG数据集）；
 - `test`目录中是各个模块的测试案例
 - `utils`是各个工具类的实现
     - `data_helpers.py`是各个下游任务的数据预处理及数据集构建模块；
@@ -83,10 +84,10 @@
     
  ## 模型详细解析
 - [x] [1. BERT原理与NSL和MLM](https://www.ylkz.life/deeplearning/p10631450/) <br>
-- [x] [2. 从零实现BERT网络模型](https://www.ylkz.life/deeplearning/p10602241/)
-- [ ] [3. 基于BERT预训练模型的中文文本分类任务](https://www.ylkz.life)
-- [ ] [4. 基于BERT预训练模型的英文文本蕴含任务](https://www.ylkz.life)
-- [ ] [5. 基于BERT预训练模型的英文多选项任务](https://www.ylkz.life)
-- [ ] [6. 基于BERT预训练模型的中文问答任务](https://www.ylkz.life)
+- [x] [2. 从零实现BERT网络模型](https://www.ylkz.life/deeplearning/p10602241/) 　　　[代码](model/BasicBert)
+- [ ] [3. 基于BERT预训练模型的中文文本分类任务](https://www.ylkz.life) 　　　[代码](model/DownstreamTasks/BertForSentenceClassification.py)
+- [ ] [4. 基于BERT预训练模型的英文文本蕴含任务](https://www.ylkz.life) 　　　[代码](model/DownstreamTasks/BertForSentenceClassification.py)
+- [ ] [5. 基于BERT预训练模型的英文多选项任务](https://www.ylkz.life) 　　　[代码](model/DownstreamTasks/BertForMultipleChoice.py)
+- [ ] [6. 基于BERT预训练模型的中文问答任务](https://www.ylkz.life) 　　　[代码](model/DownstreamTasks/BertForQuestionAnswering.py)
 - [ ] [7. 基于NSL和MLM任务从头训练BERT任务](https://www.ylkz.life)
 
