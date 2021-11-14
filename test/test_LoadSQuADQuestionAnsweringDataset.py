@@ -21,11 +21,11 @@ if __name__ == '__main__':
                                                      only_test=True)
     sample_id = 5
     for con_que, batch_seg, batch_label, raw_contexts in test_iter:
-        print(f"context question shape: {con_que.shape}")
+        print(f"context question shape: {con_que.shape}")  # [max_len, batch_size]
         print(con_que.transpose(0, 1))
-        print(f"context question shape: {batch_seg.shape}")
+        print(f"token_type_ids shape: {batch_seg.shape}")  # [max_len, batch_size]
         print(batch_seg.transpose(0, 1))
-        print(batch_label.shape)
+        print(batch_label.shape)  # [batch_size,2]
         context = con_que.transpose(0, 1)[sample_id]
 
         strs = " ".join([data_loader.vocab.itos[s] for s in context][1:])

@@ -334,15 +334,17 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                 qas = paragraphs[j]['qas']  # 取第j个context下的所有 问题-答案 对
                 # 将上下文字符串转换为token id
                 context_ids = [self.vocab[token] for token in self.tokenizer(context)]
-                context_ids = [self.CLS_IDX] + context_ids + [self.SEP_IDX]
-                logging.debug(f"context:{context}")
-                for k in range(len(qas)):  # 遍历第j个个context中的多个 问题-答案 对
+                logging.debug(f"context:\n{context}")
+                logging.debug(f"context ids:\n{context_ids}")
+                for k in range(len(qas)):  # 遍历第j个context中的多个 问题-答案 对
                     answer_start = qas[k]['answers'][0]['answer_start']
                     text = qas[k]['answers'][0]['text']
                     question = qas[k]['question']
                     start_pos, end_pos = self.get_start_end_position(context, answer_start, text)
                     question_ids = [self.vocab[token] for token in self.tokenizer(question)]
-                    sample = context_ids + question_ids
+                    question_ids = [self.CLS_IDX] + question_ids + [self.SEP_IDX]
+                    logging.debug(f"question ids:\n{question_ids}")
+                    sample = question_ids + context_ids
                     logging.debug(f"answer_start:{answer_start}")
                     logging.debug(f"原始答案：{text},<===>与处理后的答案："
                                   f"{' '.join(context.split()[start_pos:end_pos + 1])}")
@@ -350,6 +352,7 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                         sample = sample[:self.max_position_embeddings - 1]
                         # BERT预训练模型只取前max_position_embeddings个字符
                     sample = torch.tensor(sample + [self.SEP_IDX])
+                    logging.debug(f"sample id(question + context):\n {sample}")
                     seg = [0] * len(context_ids) + [1] * (len(sample) - len(context_ids))
                     seg = torch.tensor((seg))
                     max_len = max(max_len, sample.size(0))
