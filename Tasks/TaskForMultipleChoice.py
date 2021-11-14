@@ -2,7 +2,7 @@ import sys
 
 sys.path.append('../')
 from model.BasicBert.BertConfig import BertConfig
-from model.DownstreamTasks.BertForMultipleChoice import BertForMultipleChoice
+from model.DownstreamTasks import BertForMultipleChoice
 from utils.data_helpers import LoadMultipleChoiceDataset
 from utils.log_helper import logger_init
 from transformers import BertTokenizer
@@ -49,16 +49,16 @@ class ModelConfig:
 
 
 def train(config):
-    multiple_choice_model = BertForMultipleChoice(config,
-                                                  config.pretrained_model_dir)
+    model = BertForMultipleChoice(config,
+                                  config.pretrained_model_dir)
     model_save_path = os.path.join(config.model_save_dir, 'model.pt')
     if os.path.exists(model_save_path):
         loaded_paras = torch.load(model_save_path)
-        multiple_choice_model.load_state_dict(loaded_paras)
+        model.load_state_dict(loaded_paras)
         logging.info("## 成功载入已有模型，进行追加训练......")
-    multiple_choice_model = multiple_choice_model.to(config.device)
-    optimizer = torch.optim.Adam(multiple_choice_model.parameters(), lr=config.learning_rate)
-    multiple_choice_model.train()
+    model = model.to(config.device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
+    model.train()
     bert_tokenize = BertTokenizer.from_pretrained(model_config.pretrained_model_dir).tokenize
     data_loader = LoadMultipleChoiceDataset(
         vocab_path=config.vocab_path,
@@ -82,12 +82,11 @@ def train(config):
             label = label.to(config.device)
             seg = seg.to(config.device)
             mask = mask.to(config.device)
-            loss, logits = multiple_choice_model(
-                input_ids=qa,
-                attention_mask=mask,
-                token_type_ids=seg,
-                position_ids=None,
-                labels=label)
+            loss, logits = model(input_ids=qa,
+                                 attention_mask=mask,
+                                 token_type_ids=seg,
+                                 position_ids=None,
+                                 labels=label)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -101,13 +100,13 @@ def train(config):
         logging.info(f"Epoch: {epoch}, Train loss: "
                      f"{train_loss:.3f}, Epoch time = {(end_time - start_time):.3f}s")
         if (epoch + 1) % config.model_val_per_epoch == 0:
-            acc, y_pred = evaluate(val_iter, multiple_choice_model,
+            acc, y_pred = evaluate(val_iter, model,
                                    config.device, inference=False)
             show_result(val_iter, y_pred, data_loader.vocab.itos)
             logging.info(f"Accuracy on val {acc:.3f}")
             if acc > max_acc:
                 max_acc = acc
-                torch.save(multiple_choice_model.state_dict(), model_save_path)
+                torch.save(model.state_dict(), model_save_path)
 
 
 def inference(config):

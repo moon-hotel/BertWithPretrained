@@ -1,0 +1,3 @@
+from .BertForSentenceClassification import BertForSentenceClassification
+from .BertForMultipleChoice import BertForMultipleChoice
+from .BertForQuestionAnswering import BertForQuestionAnswering

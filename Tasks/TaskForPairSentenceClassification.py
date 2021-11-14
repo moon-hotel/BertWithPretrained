@@ -1,7 +1,7 @@
 import sys
 
 sys.path.append('../')
-from model.DownstreamTasks.BertForSentenceClassification import BertForSentenceClassification
+from model.DownstreamTasks import BertForSentenceClassification
 from model.BasicBert.BertConfig import BertConfig
 from utils.data_helpers import LoadPairSentenceClassificationDataset
 from utils.log_helper import logger_init
@@ -48,16 +48,16 @@ class ModelConfig:
 
 
 def train(config):
-    classification_model = BertForSentenceClassification(config,
-                                                         config.pretrained_model_dir)
+    model = BertForSentenceClassification(config,
+                                          config.pretrained_model_dir)
     model_save_path = os.path.join(config.model_save_dir, 'model.pt')
     if os.path.exists(model_save_path):
         loaded_paras = torch.load(model_save_path)
-        classification_model.load_state_dict(loaded_paras)
+        model.load_state_dict(loaded_paras)
         logging.info("## 成功载入已有模型，进行追加训练......")
-    classification_model = classification_model.to(config.device)
-    optimizer = torch.optim.Adam(classification_model.parameters(), lr=3e-5)
-    classification_model.train()
+    model = model.to(config.device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=3e-5)
+    model.train()
     bert_tokenize = BertTokenizer.from_pretrained(
         model_config.pretrained_model_dir).tokenize
     data_loader = LoadPairSentenceClassificationDataset(
@@ -81,7 +81,7 @@ def train(config):
             label = label.to(config.device)
             seg = seg.to(config.device)
             padding_mask = (sample == data_loader.PAD_IDX).transpose(0, 1)
-            loss, logits = classification_model(
+            loss, logits = model(
                 input_ids=sample,
                 attention_mask=padding_mask,
                 token_type_ids=seg,
@@ -100,22 +100,22 @@ def train(config):
         logging.info(f"Epoch: {epoch}, Train loss: "
                      f"{train_loss:.3f}, Epoch time = {(end_time - start_time):.3f}s")
         if (epoch + 1) % config.model_val_per_epoch == 0:
-            acc = evaluate(val_iter, classification_model, config.device, data_loader.PAD_IDX)
+            acc = evaluate(val_iter, model, config.device, data_loader.PAD_IDX)
             logging.info(f"Accuracy on val {acc:.3f}")
             if acc > max_acc:
                 max_acc = acc
-                torch.save(classification_model.state_dict(), model_save_path)
+                torch.save(model.state_dict(), model_save_path)
 
 
 def inference(config):
-    classification_model = BertForSentenceClassification(config,
-                                                         config.pretrained_model_dir)
+    model = BertForSentenceClassification(config,
+                                          config.pretrained_model_dir)
     model_save_path = os.path.join(config.model_save_dir, 'model.pt')
     if os.path.exists(model_save_path):
         loaded_paras = torch.load(model_save_path)
-        classification_model.load_state_dict(loaded_paras)
+        model.load_state_dict(loaded_paras)
         logging.info("## 成功载入已有模型，进行预测......")
-    classification_model = classification_model.to(config.device)
+    model = model.to(config.device)
     data_loader = LoadPairSentenceClassificationDataset(vocab_path=config.vocab_path,
                                                         tokenizer=BertTokenizer.from_pretrained(
                                                             config.pretrained_model_dir).tokenize,
@@ -128,7 +128,7 @@ def inference(config):
     train_iter, test_iter, val_iter = data_loader.load_train_val_test_data(config.train_file_path,
                                                                            config.val_file_path,
                                                                            config.test_file_path)
-    acc = evaluate(test_iter, classification_model, device=config.device)
+    acc = evaluate(test_iter, model, device=config.device)
     logging.info(f"Acc on test:{acc:.3f}")
 
 
