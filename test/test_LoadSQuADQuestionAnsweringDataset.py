@@ -10,31 +10,36 @@ if __name__ == '__main__':
     data_loader = LoadSQuADQuestionAnsweringDataset(vocab_path=model_config.vocab_path,
                                                     tokenizer=BertTokenizer.from_pretrained(
                                                         model_config.pretrained_model_dir).tokenize,
-                                                    batch_size=6,
-                                                    max_sen_len=None,
+                                                    batch_size=3,
+                                                    max_sen_len=512,
                                                     max_position_embeddings=512,
                                                     pad_index=0,
                                                     is_sample_shuffle=False,
                                                     )
-    # all_data, max_len= data_loader.data_process(model_config.train_file_path)
-    test_iter = data_loader.load_train_val_test_data(test_file_path=model_config.test_file_path,
-                                                     only_test=True)
-    sample_id = 5
-    for con_que, batch_seg, batch_label, raw_contexts in test_iter:
-        print(f"context question shape: {con_que.shape}")  # [max_len, batch_size]
-        print(con_que.transpose(0, 1))
+
+    # examples = data_loader.preprocessing(model_config.train_file_path)
+    # print(examples)
+    train_iter, test_iter = data_loader.load_train_test_data(test_file_path=model_config.test_file_path,
+                                                             train_file_path=model_config.train_file_path,
+                                                             only_test=False)
+
+    for i, (batch_input, batch_seg, batch_label, batch_answer) in enumerate(train_iter):
+        print(f"intput_ids shape: {batch_input.shape}")  # [max_len, batch_size]
+        print(batch_input.transpose(0, 1).tolist())
         print(f"token_type_ids shape: {batch_seg.shape}")  # [max_len, batch_size]
-        print(batch_seg.transpose(0, 1))
-        print(batch_label.shape)  # [batch_size,2]
-        context = con_que.transpose(0, 1)[sample_id]
+        print(batch_seg.transpose(0, 1).tolist())
+        print(batch_label)  # [batch_size,2]
 
-        strs = " ".join([data_loader.vocab.itos[s] for s in context][1:])
-        _, question, _ = strs.replace(" ##", "").split('[SEP]')
+        sample = batch_input.transpose(0, 1)[i]
+        start_pos, end_pos = batch_label[i][0], batch_label[i][1]
+        strs = [data_loader.vocab.itos[s] for s in sample][1:] # 原始tokens
+        answer = " ".join(strs[start_pos:(end_pos + 1)]).replace(" ##", "")
+        strs =" ".join(strs).replace(" ##", "").split('[SEP]')
+        question, context = strs[0], strs[1]
+        print(f"问题：{question}")
+        print(f"描述：{context}")
+        print(f"正确答案：{answer}")
 
-        start_pos, end_pos = batch_label[sample_id][0], batch_label[sample_id][1]
-        raw_context = raw_contexts[sample_id]
-        answer = " ".join(raw_context.split()[start_pos:end_pos + 1])
-        print(f"context: \n {raw_context}")
-        print(f"question:  {question}")
-        print(f"answer:  {answer}")
-        break
+        # break
+
+

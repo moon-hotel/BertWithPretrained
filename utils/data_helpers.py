@@ -321,60 +321,214 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                 break
         return start_pos, end_pos
 
-    def data_process(self, filepath):
+    @staticmethod
+    def get_format_text_and_word_offset(text):
+        """
+        格式化原始输入的文本（去除多个空格）,同时得到每个字符所属的元素（单词）的位置
+        这样，根据原始文本所给出的起始index就能立马判定它在列表中的位置。
+        :param text:
+        :return:
+        e.g.
+            text = "Architecturally, the school has a Catholic character. "
+            return:['Architecturally,', 'the', 'school', 'has', 'a', 'Catholic', 'character.'],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 3,
+             3, 3, 3, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6]
+        """
+
+        def is_whitespace(c):
+            if c == " " or c == "\t" or c == "\r" or c == "\n" or ord(c) == 0x202F:
+                return True
+            return False
+
+        doc_tokens = []
+        char_to_word_offset = []
+        prev_is_whitespace = True
+        # 以下这个for循环的作用就是将原始context中的内容进行格式化
+        for c in text:  # 遍历paragraph中的每个字符
+            if is_whitespace(c):  # 判断当前字符是否为空格（各类空格）
+                prev_is_whitespace = True
+            else:
+                if prev_is_whitespace:  # 如果前一个字符是空格
+                    doc_tokens.append(c)
+                else:
+                    doc_tokens[-1] += c  # 在list的最后一个元素中继续追加字符
+                prev_is_whitespace = False
+            char_to_word_offset.append(len(doc_tokens) - 1)
+        return doc_tokens, char_to_word_offset
+
+    def preprocessing(self, filepath, is_training=True):
+        """
+        将原始数据进行预处理，同时返回得到答案在原始context中的具体开始和结束位置（以单词为单位）
+        :param filepath:
+        :param is_training:
+        :return:
+        返回形式为一个二维列表，内层列表中的各个元素分别为 ['问题ID','原始问题文本','答案文本','context文本',
+        '答案在context中的开始位置','答案在context中的结束位置']，如下示例所示：
+        [['5733be284776f41900661182', 'To whom did the Virgin Mary allegedly appear in 1858 in Lourdes France?',
+        'Saint Bernadette Soubirous', 'Architecturally, the school has a Catholic character......',
+        90, 92],
+         ['5733be284776f4190066117f', ....]]
+        """
         with open(filepath, 'r') as f:
             raw_data = json.loads(f.read())
             data = raw_data['data']
-        all_data = []
-        max_len = 0
+        examples = []
         for i in tqdm(range(len(data))):  # 遍历每一个paragraphs
             paragraphs = data[i]['paragraphs']  # 取第i个paragraphs
             for j in range(len(paragraphs)):  # 遍历第i个paragraphs的每个context
                 context = paragraphs[j]['context']  # 取第j个context
+                context_tokens, word_offset = self.get_format_text_and_word_offset(context)
                 qas = paragraphs[j]['qas']  # 取第j个context下的所有 问题-答案 对
-                # 将上下文字符串转换为token id
-                context_ids = [self.vocab[token] for token in self.tokenizer(context)]
-                logging.debug(f"context:\n{context}")
-                logging.debug(f"context ids:\n{context_ids}")
                 for k in range(len(qas)):  # 遍历第j个context中的多个 问题-答案 对
-                    answer_start = qas[k]['answers'][0]['answer_start']
-                    text = qas[k]['answers'][0]['text']
-                    question = qas[k]['question']
-                    start_pos, end_pos = self.get_start_end_position(context, answer_start, text)
-                    question_ids = [self.vocab[token] for token in self.tokenizer(question)]
-                    question_ids = [self.CLS_IDX] + question_ids + [self.SEP_IDX]
-                    logging.debug(f"question ids:\n{question_ids}")
-                    sample = question_ids + context_ids
-                    logging.debug(f"answer_start:{answer_start}")
-                    logging.debug(f"原始答案：{text},<===>与处理后的答案："
-                                  f"{' '.join(context.split()[start_pos:end_pos + 1])}")
-                    if len(sample) > self.max_position_embeddings - 1:
-                        sample = sample[:self.max_position_embeddings - 1]
-                        # BERT预训练模型只取前max_position_embeddings个字符
-                    sample = torch.tensor(sample + [self.SEP_IDX])
-                    logging.debug(f"sample id(question + context):\n {sample}")
-                    seg = [0] * len(context_ids) + [1] * (len(sample) - len(context_ids))
-                    seg = torch.tensor((seg))
-                    max_len = max(max_len, sample.size(0))
-                    # 由于根据token id 转换为文本后的结果与原始context结果差异较大，所以这里也同时保存原始context
-                    all_data.append((sample, seg, start_pos, end_pos, context))
+                    question_text = qas[k]['question']
+                    qas_id = qas[k]['id']
+                    if is_training:
+                        answer_offset = qas[k]['answers'][0]['answer_start']
+                        orig_answer_text = qas[k]['answers'][0]['text']
+                        answer_length = len(orig_answer_text)
+                        start_position = word_offset[answer_offset]
+                        end_position = word_offset[answer_offset + answer_length - 1]
+                        actual_text = " ".join(
+                            context_tokens[start_position:(end_position + 1)])
+                        cleaned_answer_text = " ".join(orig_answer_text.strip().split())
+                        if actual_text.find(cleaned_answer_text) == -1:
+                            logging.warning("Could not find answer: '%s' vs. '%s'",
+                                            actual_text, cleaned_answer_text)
+                            continue
+                    else:
+                        start_position = None
+                        end_position = None
+                        orig_answer_text = None
+                    examples.append([qas_id, question_text, orig_answer_text,
+                                     " ".join(context_tokens), start_position, end_position])
+        return examples
+
+    @staticmethod
+    def improve_answer_span(context_tokens,
+                            answer_tokens,
+                            start_position,
+                            end_position):
+        """
+        本方法的作用有两个：
+            1. 如https://github.com/google-research/bert中run_squad.py里的_improve_answer_span()函数一样，
+               用于提取得到更加匹配答案的起止位置；
+            2. 根据原始起止位置，提取得到token id中答案的起止位置
+        # The SQuAD annotations are character based. We first project them to
+        # whitespace-tokenized words. But then after WordPiece tokenization, we can
+        # often find a "better match". For example:
+        #
+        #   Question: What year was John Smith born?
+        #   Context: The leader was John Smith (1895-1943).
+        #   Answer: 1895
+        #
+        # The original whitespace-tokenized answer will be "(1895-1943).". However
+        # after tokenization, our tokens will be "( 1895 - 1943 ) .". So we can match
+        # the exact answer, 1895.
+
+        context = "The leader was John Smith (1895-1943).
+        :param context_tokens: ['the', 'leader', 'was', 'john', 'smith', '(', '1895', '-', '1943', ')', '.']
+        :param answer_tokens: 1895
+        :param start_position: 5
+        :param end_position: 5
+        :return: [6,6]
+        再例如：
+        context = "Architecturally, the school has a Catholic character."
+        context = ['virgin', 'mary', 'reputed', '##ly', 'appeared', 'to', 'saint', 'bern', '##ade',
+                    '##tte', 'so', '##ub', '##iro', '##us', 'in', '1858']
+        answer_text = "Saint Bernadette Soubirous"
+        start_position = 5
+        end_position = 7
+        return (6,13)
+
+        """
+        new_end = None
+        for i in range(start_position, len(context_tokens)):
+            if context_tokens[i] != answer_tokens[0]:
+                continue
+            for j in range(len(answer_tokens)):
+                if answer_tokens[j] != context_tokens[i + j]:
+                    break
+                new_end = i + j
+            if new_end - i + 1 == len(answer_tokens):
+                return i, new_end
+        return start_position, end_position
+
+    def data_process(self, filepath, is_training=None):
+        examples = self.preprocessing(filepath, is_training)
+        max_len = 0
+        all_data = []
+        for example in examples:
+            question_tokens = self.tokenizer(example[1])
+            question_ids = [self.vocab[token] for token in question_tokens]
+            question_ids = [self.CLS_IDX] + question_ids + [self.SEP_IDX]
+            context_tokens = self.tokenizer(example[3])
+            context_ids = [self.vocab[token] for token in context_tokens]
+            logging.debug(f"## 正在预处理数据 {__name__}")
+            logging.debug(f"\nquestion ids:{question_ids}")
+            input_ids = question_ids + context_ids
+            if len(input_ids) > self.max_position_embeddings - 1:
+                input_ids = input_ids[:self.max_position_embeddings - 1]
+                # BERT预训练模型只取前max_position_embeddings个字符
+            input_ids = torch.tensor(input_ids + [self.SEP_IDX])
+            input_tokens = ['[CLS]'] + question_tokens + ['[SEP]'] + context_tokens + ['[SEP]']
+            logging.debug(f"\nsample ids(question + context): {input_ids.tolist()}")
+            seg = [0] * len(question_ids) + [1] * (len(input_ids) - len(question_ids))
+            seg = torch.tensor((seg))
+            max_len = max(max_len, input_ids.size(0))
+            start_position, end_position, answer_text = -1, -1, None
+            if is_training:
+                start_position, end_position = example[4], example[5]
+                answer_text = example[2]
+                answer_tokens = self.tokenizer(answer_text)
+                start_position, end_position = self.improve_answer_span(context_tokens,
+                                                                        answer_tokens,
+                                                                        start_position,
+                                                                        end_position)
+                start_position += (len(question_ids))
+                end_position += (len(question_ids))
+                logging.debug(f"原始答案：{answer_text} <===>处理后的答案："
+                              f"{' '.join(input_tokens[start_position:(end_position + 1)])}")
+            logging.debug(f"\n{input_tokens}")
+            logging.debug(f"\ninput_ids:{input_ids.tolist()}")
+            logging.debug(f"\nsegment ids:{seg.tolist()}")
+            logging.debug(f"start pos:{start_position}")
+            logging.debug(f"end pos:{end_position}")
+            logging.debug("======================\n")
+            all_data.append((input_ids, seg, start_position, end_position, answer_text))
         return all_data, max_len
 
     def generate_batch(self, data_batch):
-        batch_con_que, batch_seg, batch_label, contexts = [], [], [], []
+        batch_input, batch_seg, batch_label, batch_answer = [], [], [], []
         for item in data_batch:
-            batch_con_que.append(item[0])
+            batch_input.append(item[0])
             batch_seg.append(item[1])
             batch_label.append([item[2], item[3]])
-            contexts.append(item[4])
-        batch_con_que = pad_sequence(batch_con_que,  # [batch_size,max_len]
-                                     padding_value=self.PAD_IDX,
-                                     batch_first=False,
-                                     max_len=self.max_sen_len)  # [max_len,batch_size]
+            batch_answer.append(item[4])
+        batch_input = pad_sequence(batch_input,  # [batch_size,max_len]
+                                   padding_value=self.PAD_IDX,
+                                   batch_first=False,
+                                   max_len=self.max_sen_len)  # [max_len,batch_size]
         batch_seg = pad_sequence(batch_seg,  # [batch_size,max_len]
                                  padding_value=self.PAD_IDX,
                                  batch_first=False,
                                  max_len=self.max_sen_len)  # [max_len, batch_size]
         batch_label = torch.tensor(batch_label, dtype=torch.long)
         # [max_len, batch_size] , [max_len, batch_size] , [batch_size,2]
-        return batch_con_que, batch_seg, batch_label, contexts
+        return batch_input, batch_seg, batch_label, batch_answer
+
+    def load_train_test_data(self, train_file_path=None,
+                             test_file_path=None,
+                             only_test=True):
+
+        test_data, _ = self.data_process(test_file_path, False)
+        test_iter = DataLoader(test_data, batch_size=self.batch_size,
+                               shuffle=self.is_sample_shuffle,
+                               collate_fn=self.generate_batch)
+        if only_test:
+            return test_iter
+        train_data, max_sen_len = self.data_process(train_file_path, True)  # 得到处理好的所有样本
+        if self.max_sen_len == 'same':
+            self.max_sen_len = max_sen_len
+        train_iter = DataLoader(train_data, batch_size=self.batch_size,  # 构造DataLoader
+                                shuffle=self.is_sample_shuffle, collate_fn=self.generate_batch)
+        return train_iter, test_iter
