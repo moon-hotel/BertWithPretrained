@@ -4,6 +4,7 @@ from tqdm import tqdm
 import pandas as pd
 import json
 import logging
+import os
 
 
 class Vocab:
@@ -75,6 +76,32 @@ def pad_sequence(sequences, batch_first=False, max_len=None, padding_value=0):
     if batch_first:
         return out_tensors.transpose(0, 1)
     return out_tensors
+
+
+def cache(func):
+    """
+    本修饰器的作用是将data_process()方法处理后的结果进行缓存，下次使用时可直接载入！
+    :param func:
+    :return:
+    """
+
+    def wrapper(*args, **kwargs):
+        filepath = kwargs['filepath']
+        data_path = filepath[:-len(filepath.split('.')[-1])] + 'pt'
+        if not os.path.exists(data_path):
+            logging.info(f"缓存文件 {data_path} 不存在，重新处理并缓存！")
+            all_data, max_len = func(*args, **kwargs)
+            with open(data_path, 'wb') as f:
+                data = {'all_data': all_data, 'max_len': max_len}
+                torch.save(data, f)
+        else:
+            logging.info(f"缓存文件 {data_path} 存在，直接载入缓存文件！")
+            with open(data_path, 'rb') as f:
+                data = torch.load(f)
+                all_data, max_len = data['all_data'], data['max_len']
+        return all_data, max_len
+
+    return wrapper
 
 
 class LoadSingleSentenceClassificationDataset:
@@ -373,7 +400,7 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
             raw_data = json.loads(f.read())
             data = raw_data['data']
         examples = []
-        for i in tqdm(range(len(data))):  # 遍历每一个paragraphs
+        for i in tqdm(range(len(data)), ncols=80):  # 遍历每一个paragraphs
             paragraphs = data[i]['paragraphs']  # 取第i个paragraphs
             for j in range(len(paragraphs)):  # 遍历第i个paragraphs的每个context
                 context = paragraphs[j]['context']  # 取第j个context
@@ -453,25 +480,27 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                 return i, new_end
         return start_position, end_position
 
-    def data_process(self, filepath, is_training=None):
+    @cache
+    def data_process(self, filepath, is_training):
         examples = self.preprocessing(filepath, is_training)
         max_len = 0
         all_data = []
-        for example in examples:
+        for example in tqdm(examples, ncols=80):
             question_tokens = self.tokenizer(example[1])
             question_ids = [self.vocab[token] for token in question_tokens]
             question_ids = [self.CLS_IDX] + question_ids + [self.SEP_IDX]
             context_tokens = self.tokenizer(example[3])
             context_ids = [self.vocab[token] for token in context_tokens]
-            logging.debug(f"## 正在预处理数据 {__name__}")
-            logging.debug(f"\nquestion ids:{question_ids}")
+            logging.debug(f"## 正在预处理数据 {__name__} is_training = {is_training}")
+            logging.debug(f"question id: {example[0]}")
+            logging.debug(f"## question text:{example[1]}")
             input_ids = question_ids + context_ids
             if len(input_ids) > self.max_position_embeddings - 1:
                 input_ids = input_ids[:self.max_position_embeddings - 1]
                 # BERT预训练模型只取前max_position_embeddings个字符
             input_ids = torch.tensor(input_ids + [self.SEP_IDX])
             input_tokens = ['[CLS]'] + question_tokens + ['[SEP]'] + context_tokens + ['[SEP]']
-            logging.debug(f"\nsample ids(question + context): {input_ids.tolist()}")
+            logging.debug(f"## sample ids(question + context): {input_ids.tolist()}")
             seg = [0] * len(question_ids) + [1] * (len(input_ids) - len(question_ids))
             seg = torch.tensor((seg))
             max_len = max(max_len, input_ids.size(0))
@@ -488,22 +517,21 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                 end_position += (len(question_ids))
                 logging.debug(f"原始答案：{answer_text} <===>处理后的答案："
                               f"{' '.join(input_tokens[start_position:(end_position + 1)])}")
-            logging.debug(f"\n{input_tokens}")
-            logging.debug(f"\ninput_ids:{input_ids.tolist()}")
-            logging.debug(f"\nsegment ids:{seg.tolist()}")
-            logging.debug(f"start pos:{start_position}")
-            logging.debug(f"end pos:{end_position}")
+            logging.debug(f"## input_tokens: {input_tokens}")
+            logging.debug(f"## input_ids:{input_ids.tolist()}")
+            logging.debug(f"## segment ids:{seg.tolist()}")
+            logging.debug(f"## start pos:{start_position}")
+            logging.debug(f"## end pos:{end_position}")
             logging.debug("======================\n")
             all_data.append((input_ids, seg, start_position, end_position, answer_text))
         return all_data, max_len
 
     def generate_batch(self, data_batch):
-        batch_input, batch_seg, batch_label, batch_answer = [], [], [], []
+        batch_input, batch_seg, batch_label = [], [], []
         for item in data_batch:
             batch_input.append(item[0])
             batch_seg.append(item[1])
             batch_label.append([item[2], item[3]])
-            batch_answer.append(item[4])
         batch_input = pad_sequence(batch_input,  # [batch_size,max_len]
                                    padding_value=self.PAD_IDX,
                                    batch_first=False,
@@ -514,19 +542,20 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                                  max_len=self.max_sen_len)  # [max_len, batch_size]
         batch_label = torch.tensor(batch_label, dtype=torch.long)
         # [max_len, batch_size] , [max_len, batch_size] , [batch_size,2]
-        return batch_input, batch_seg, batch_label, batch_answer
+        return batch_input, batch_seg, batch_label
 
     def load_train_test_data(self, train_file_path=None,
                              test_file_path=None,
                              only_test=True):
 
-        test_data, _ = self.data_process(test_file_path, False)
+        test_data, _ = self.data_process(filepath=test_file_path, is_training=False)
         test_iter = DataLoader(test_data, batch_size=self.batch_size,
                                shuffle=self.is_sample_shuffle,
                                collate_fn=self.generate_batch)
         if only_test:
             return test_iter
-        train_data, max_sen_len = self.data_process(train_file_path, True)  # 得到处理好的所有样本
+        train_data, max_sen_len = self.data_process(filepath=train_file_path,
+                                                    is_training=True)  # 得到处理好的所有样本
         if self.max_sen_len == 'same':
             self.max_sen_len = max_sen_len
         train_iter = DataLoader(train_data, batch_size=self.batch_size,  # 构造DataLoader
