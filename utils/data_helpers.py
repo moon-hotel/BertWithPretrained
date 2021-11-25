@@ -5,6 +5,7 @@ import pandas as pd
 import json
 import logging
 import os
+from sklearn.model_selection import train_test_split
 
 
 class Vocab:
@@ -523,7 +524,7 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
             logging.debug(f"## start pos:{start_position}")
             logging.debug(f"## end pos:{end_position}")
             logging.debug("======================\n")
-            all_data.append((input_ids, seg, start_position, end_position, answer_text))
+            all_data.append([input_ids, seg, start_position, end_position, answer_text])
         return all_data, max_len
 
     def generate_batch(self, data_batch):
@@ -544,9 +545,10 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
         # [max_len, batch_size] , [max_len, batch_size] , [batch_size,2]
         return batch_input, batch_seg, batch_label
 
-    def load_train_test_data(self, train_file_path=None,
-                             test_file_path=None,
-                             only_test=True):
+    def load_train_val_test_data(self, train_file_path=None,
+                                 val_file_path=None,
+                                 test_file_path=None,
+                                 only_test=True):
 
         test_data, _ = self.data_process(filepath=test_file_path, is_training=False)
         test_iter = DataLoader(test_data, batch_size=self.batch_size,
@@ -556,8 +558,11 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
             return test_iter
         train_data, max_sen_len = self.data_process(filepath=train_file_path,
                                                     is_training=True)  # 得到处理好的所有样本
+        train_data, val_data = train_test_split(train_data, test_size=0.3, random_state=2021)
         if self.max_sen_len == 'same':
             self.max_sen_len = max_sen_len
         train_iter = DataLoader(train_data, batch_size=self.batch_size,  # 构造DataLoader
                                 shuffle=self.is_sample_shuffle, collate_fn=self.generate_batch)
-        return train_iter, test_iter
+        val_iter = DataLoader(val_data, batch_size=self.batch_size,  # 构造DataLoader
+                              shuffle=self.is_sample_shuffle, collate_fn=self.generate_batch)
+        return train_iter, test_iter, val_iter
