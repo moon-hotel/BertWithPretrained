@@ -108,9 +108,11 @@ def train(config):
                                    config.device,
                                    data_loader.PAD_IDX,
                                    inference=False)
-            batch_input = next(iter(val_iter))[0]
-            y_true = next(iter(val_iter))[2]
+            a_batch = next(iter(val_iter))
+            batch_input = a_batch[0]
+            y_true = [a_batch[2][:, 0], a_batch[2][:, 1]]
             show_result(batch_input, data_loader.vocab.itos, y_pred=y_pred, y_true=y_true)
+            logging.info(f" ### Accuracy on val: {round(acc, 4)}")
 
             if acc > max_acc:
                 max_acc = acc
@@ -173,7 +175,7 @@ def show_result(batch_input, itos, num_show=5, y_pred=None, y_true=None):
         true_answer_text = " ".join(input_tokens[start_pos:(end_pos + 1)])
         true_answer_text = true_answer_text.replace(" ##", "")
         logging.info(f" ### True answer: {true_answer_text}")
-        logging.info(f" ### True answer idx: {start_pos, end_pos}")
+        logging.info(f" ### True answer idx: {start_pos.cpu(), end_pos.cpu()}")
         count += 1
 
 

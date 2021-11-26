@@ -524,15 +524,16 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
             logging.debug(f"## start pos:{start_position}")
             logging.debug(f"## end pos:{end_position}")
             logging.debug("======================\n")
-            all_data.append([input_ids, seg, start_position, end_position, answer_text])
+            all_data.append([input_ids, seg, start_position, end_position, answer_text, example[0]])
         return all_data, max_len
 
     def generate_batch(self, data_batch):
-        batch_input, batch_seg, batch_label = [], [], []
+        batch_input, batch_seg, batch_label,batch_qid = [], [], [],[]
         for item in data_batch:
             batch_input.append(item[0])
             batch_seg.append(item[1])
             batch_label.append([item[2], item[3]])
+            batch_qid.append(item[5])
         batch_input = pad_sequence(batch_input,  # [batch_size,max_len]
                                    padding_value=self.PAD_IDX,
                                    batch_first=False,
@@ -543,7 +544,7 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                                  max_len=self.max_sen_len)  # [max_len, batch_size]
         batch_label = torch.tensor(batch_label, dtype=torch.long)
         # [max_len, batch_size] , [max_len, batch_size] , [batch_size,2]
-        return batch_input, batch_seg, batch_label
+        return batch_input, batch_seg, batch_label,batch_qid
 
     def load_train_val_test_data(self, train_file_path=None,
                                  val_file_path=None,

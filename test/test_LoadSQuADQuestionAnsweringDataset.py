@@ -24,7 +24,7 @@ if __name__ == '__main__':
                                  train_file_path=model_config.train_file_path,
                                  only_test=False)
 
-    for batch_input, batch_seg, batch_label in train_iter:
+    for batch_input, batch_seg, batch_label, batch_qid in train_iter:
         print("=====================>")
         print(f"intput_ids shape: {batch_input.shape}")  # [max_len, batch_size]
         print(batch_input.transpose(0, 1).tolist())
@@ -39,6 +39,7 @@ if __name__ == '__main__':
             answer = " ".join(strs[start_pos:(end_pos + 1)]).replace(" ##", "")
             strs = " ".join(strs).replace(" ##", "").split('[SEP]')
             question, context = strs[0], strs[1]
+            print(f"问题ID：{batch_qid[i]}")
             print(f"问题：{question}")
             print(f"描述：{context}")
             print(f"正确答案：{answer}")
