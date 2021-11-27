@@ -1,0 +1,105 @@
+{
+  "data": [
+    {
+      "title": "Super_Bowl_50",
+      "paragraphs": [
+        {
+          "context": "Super Bowl 50 was an American football game to determine the champion of the National Football League (NFL) for the 2015 season. The American Football Conference (AFC) champion Denver Broncos defeated the National Football Conference (NFC) champion Carolina Panthers 24\u201310 to earn their third Super Bowl title. The game was played on February 7, 2016, at Levi's Stadium in the San Francisco Bay Area at Santa Clara, California. As this was the 50th Super Bowl, the league emphasized the \"golden anniversary\" with various gold-themed initiatives, as well as temporarily suspending the tradition of naming each Super Bowl game with Roman numerals (under which the game would have been known as \"Super Bowl L\"), so that the logo could prominently feature the Arabic numerals 50.",
+          "qas": [
+            {
+              "answers": [
+                {
+                  "answer_start": 177,
+                  "text": "Denver Broncos"
+                },
+                {
+                  "answer_start": 177,
+                  "text": "Denver Broncos"
+                },
+                {
+                  "answer_start": 177,
+                  "text": "Denver Broncos"
+                }
+              ],
+              "question": "Which NFL team represented the AFC at Super Bowl 50?",
+              "id": "56be4db0acb8001400a502ec"
+            },
+            {
+              "answers": [
+                {
+                  "answer_start": 249,
+                  "text": "Carolina Panthers"
+                },
+                {
+                  "answer_start": 249,
+                  "text": "Carolina Panthers"
+                },
+                {
+                  "answer_start": 249,
+                  "text": "Carolina Panthers"
+                }
+              ],
+              "question": "Which NFL team represented the NFC at Super Bowl 50?",
+              "id": "56be4db0acb8001400a502ed"
+            },
+            {
+              "answers": [
+                {
+                  "answer_start": 403,
+                  "text": "Santa Clara, California"
+                },
+                {
+                  "answer_start": 355,
+                  "text": "Levi's Stadium"
+                },
+                {
+                  "answer_start": 355,
+                  "text": "Levi's Stadium in the San Francisco Bay Area at Santa Clara, California."
+                }
+              ],
+              "question": "Where did Super Bowl 50 take place?",
+              "id": "56be4db0acb8001400a502ee"
+            },
+            {
+              "answers": [
+                {
+                  "answer_start": 177,
+                  "text": "Denver Broncos"
+                },
+                {
+                  "answer_start": 177,
+                  "text": "Denver Broncos"
+                },
+                {
+                  "answer_start": 177,
+                  "text": "Denver Broncos"
+                }
+              ],
+              "question": "Which NFL team won Super Bowl 50?",
+              "id": "56be4db0acb8001400a502ef"
+            },
+            {
+              "answers": [
+                {
+                  "answer_start": 488,
+                  "text": "gold"
+                },
+                {
+                  "answer_start": 488,
+                  "text": "gold"
+                },
+                {
+                  "answer_start": 521,
+                  "text": "gold"
+                }
+              ],
+              "question": "What color was used to emphasize the 50th anniversary of the Super Bowl?",
+              "id": "56be4db0acb8001400a502f0"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "version": "1.1"
+}
