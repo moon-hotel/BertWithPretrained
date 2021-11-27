@@ -128,7 +128,10 @@ class LoadSingleSentenceClassificationDataset:
                             当max_sen_len = 50， 表示以某个固定长度符样本进行padding，多余的截掉；
         :param split_sep: 文本和标签之前的分隔符，默认为'\t'
         :param max_position_embeddings: 指定最大样本长度，超过这个长度的部分将本截取掉
-        :param is_sample_shuffle: 是否打乱样本
+        :param is_sample_shuffle: 是否打乱训练集样本（只针对训练集）
+                在后续构造DataLoader时，验证集和测试集均指定为了固定顺序（即不进行打乱），修改程序时请勿进行打乱
+                因为当shuffle为True时，每次通过for循环遍历data_iter时样本的顺序都不一样，这会导致在模型预测时
+                返回的标签顺序与原始的顺序不一样，不方便处理。
 
         """
         self.tokenizer = tokenizer
@@ -174,7 +177,7 @@ class LoadSingleSentenceClassificationDataset:
                                  only_test=False):
         test_data, _ = self.data_process(test_file_path)
         test_iter = DataLoader(test_data, batch_size=self.batch_size,
-                               shuffle=self.is_sample_shuffle, collate_fn=self.generate_batch)
+                               shuffle=False, collate_fn=self.generate_batch)
         if only_test:
             return test_iter
         train_data, max_sen_len = self.data_process(train_file_path)  # 得到处理好的所有样本
@@ -184,7 +187,7 @@ class LoadSingleSentenceClassificationDataset:
         train_iter = DataLoader(train_data, batch_size=self.batch_size,  # 构造DataLoader
                                 shuffle=self.is_sample_shuffle, collate_fn=self.generate_batch)
         val_iter = DataLoader(val_data, batch_size=self.batch_size,
-                              shuffle=self.is_sample_shuffle, collate_fn=self.generate_batch)
+                              shuffle=False, collate_fn=self.generate_batch)
         return train_iter, test_iter, val_iter
 
     def generate_batch(self, data_batch):
@@ -553,7 +556,7 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
 
         test_data, _ = self.data_process(filepath=test_file_path, is_training=False)
         test_iter = DataLoader(test_data, batch_size=self.batch_size,
-                               shuffle=self.is_sample_shuffle,
+                               shuffle=False,
                                collate_fn=self.generate_batch)
         if only_test:
             return test_iter
@@ -565,5 +568,5 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
         train_iter = DataLoader(train_data, batch_size=self.batch_size,  # 构造DataLoader
                                 shuffle=self.is_sample_shuffle, collate_fn=self.generate_batch)
         val_iter = DataLoader(val_data, batch_size=self.batch_size,  # 构造DataLoader
-                              shuffle=self.is_sample_shuffle, collate_fn=self.generate_batch)
+                              shuffle=False, collate_fn=self.generate_batch)
         return train_iter, test_iter, val_iter
