@@ -337,26 +337,10 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
         pass
 
     @staticmethod
-    def get_start_end_position(context, answer_start, text):
-        start_pos, end_pos = 0, 0
-        text = text.strip()
-        for i in range(len(context)):
-            if i < answer_start:
-                if context[i] == ' ' and context[i - 1] != ' ':
-                    start_pos += 1
-                    end_pos = start_pos
-            elif i < answer_start + len(text):
-                if context[i] == ' ' and context[i - 1] != ' ':
-                    end_pos += 1
-            else:
-                break
-        return start_pos, end_pos
-
-    @staticmethod
     def get_format_text_and_word_offset(text):
         """
         格式化原始输入的文本（去除多个空格）,同时得到每个字符所属的元素（单词）的位置
-        这样，根据原始文本所给出的起始index就能立马判定它在列表中的位置。
+        这样，根据原始数据集中所给出的起始index(answer_start)就能立马判定它在列表中的位置。
         :param text:
         :return:
         e.g.
@@ -457,18 +441,20 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
         # the exact answer, 1895.
 
         context = "The leader was John Smith (1895-1943).
+        answer_text = "1985"
         :param context_tokens: ['the', 'leader', 'was', 'john', 'smith', '(', '1895', '-', '1943', ')', '.']
-        :param answer_tokens: 1895
+        :param answer_tokens: ['1895']
         :param start_position: 5
         :param end_position: 5
         :return: [6,6]
         再例如：
-        context = "Architecturally, the school has a Catholic character."
-        context = ['virgin', 'mary', 'reputed', '##ly', 'appeared', 'to', 'saint', 'bern', '##ade',
-                    '##tte', 'so', '##ub', '##iro', '##us', 'in', '1858']
+        context = "Virgin mary reputedly appeared to Saint Bernadette Soubirous in 1858"
         answer_text = "Saint Bernadette Soubirous"
-        start_position = 5
-        end_position = 7
+        :param context_tokens: ['virgin', 'mary', 'reputed', '##ly', 'appeared', 'to', 'saint', 'bern', '##ade',
+                                '##tte', 'so', '##ub', '##iro', '##us', 'in', '1858']
+        :param answer_tokens: ['saint', 'bern', '##ade', '##tte', 'so', '##ub', '##iro', '##us'
+        :param start_position = 5
+        :param end_position = 7
         return (6,13)
 
         """
@@ -531,7 +517,7 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
         return all_data, max_len
 
     def generate_batch(self, data_batch):
-        batch_input, batch_seg, batch_label,batch_qid = [], [], [],[]
+        batch_input, batch_seg, batch_label, batch_qid = [], [], [], []
         for item in data_batch:
             batch_input.append(item[0])
             batch_seg.append(item[1])
@@ -547,7 +533,7 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                                  max_len=self.max_sen_len)  # [max_len, batch_size]
         batch_label = torch.tensor(batch_label, dtype=torch.long)
         # [max_len, batch_size] , [max_len, batch_size] , [batch_size,2]
-        return batch_input, batch_seg, batch_label,batch_qid
+        return batch_input, batch_seg, batch_label, batch_qid
 
     def load_train_val_test_data(self, train_file_path=None,
                                  val_file_path=None,
