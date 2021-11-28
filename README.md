@@ -32,19 +32,33 @@
     - `TaskForSingleSentenceClassification.py`是单标签单文本分类任务的训练和推理实现，可用于普通的文本分类任务；
     - `TaskForPairSentence.py`是文本对分类任务的训练和推理实现，可用于蕴含任务（例如MNLI数据集）；
     - `TaskForMultipleChoice.py`是问答选择任务的训练和推理实现，可用于问答选择任务（例如SWAG数据集）；
+    - `TaskForSQuADQuestionAnswering.py`是问题回答任务的训练和推理实现，可用于问题问答任务（例如SQuAD数据集）；
 - `test`目录中是各个模块的测试案例
 - `utils`是各个工具类的实现
     - `data_helpers.py`是各个下游任务的数据预处理及数据集构建模块；
     - `log_helper.py`是日志打印模块；
-    
+
+## 环境
+Python版本为3.6，其它相关包的版本如下：
+```python
+torch==1.5.0
+torchtext==0.6.0
+torchvision==0.6.0
+transformers==4.5.1
+numpy==1.19.5
+pandas==1.1.5
+scikit-learn==0.24.0
+tqdm==4.61.0
+```
 ## 使用方式
-1. 下载完成各个数据集以及相应的BERT预训练模型（如果为空），并放入对应的目录中；<br>
-2. 进入`Tasks`目录，运行相关模型；<br>
-2.1 单文本分类任务
-   
+Step 1. 下载完成各个数据集以及相应的BERT预训练模型（如果为空），并放入对应的目录中；<br>
+Step 2. 进入`Tasks`目录，运行相关模型；<br>
+2.1 中文文本分类任务
+
    ```python
    python TaskForSingleSentenceClassification.py
    ```
+
    运行结果:
    
     ```python
@@ -61,7 +75,9 @@
     -- INFO: Accurcay on val 0.884
     -- INFO: Accurcay on val 0.888
     ```
-    2.2 文本蕴含任务
+
+2.2 英文文本蕴含任务
+
    ```python
    python TaskForPairSentenceClassification.py
    ```
@@ -81,13 +97,32 @@
     -- INFO: Accurcay on val 0.797
     -- INFO: Accurcay on val 0.810
     ```
-    
+2.3 SWAG多项选择任务
+```python
+python TaskForMultipleChoice.py
+```
+运行结果：
+```python
+[2021-11-11 21:32:50] - INFO: Epoch: 0, Batch[0/4597], Train loss :1.433, Train acc: 0.250
+[2021-11-11 21:32:58] - INFO: Epoch: 0, Batch[10/4597], Train loss :1.277, Train acc: 0.438
+[2021-11-11 21:33:01] - INFO: Epoch: 0, Batch[20/4597], Train loss :1.249, Train acc: 0.438
+        ......
+[2021-11-11 21:58:34] - INFO: Epoch: 0, Batch[4590/4597], Train loss :0.489, Train acc: 0.875
+[2021-11-11 21:58:36] - INFO: Epoch: 0, Batch loss :0.786, Epoch time = 1546.173s
+[2021-11-11 21:28:55] - INFO: Epoch: 0, Batch[0/4597], Train loss :1.433, Train acc: 0.250
+[2021-11-11 21:30:52] - INFO: He is throwing darts at a wall. A woman, squats alongside flies side to side with his gun.  ## False
+[2021-11-11 21:30:52] - INFO: He is throwing darts at a wall. A woman, throws a dart at a dartboard.   ## False
+[2021-11-11 21:30:52] - INFO: He is throwing darts at a wall. A woman, collapses and falls to the floor.   ## False
+[2021-11-11 21:30:52] - INFO: He is throwing darts at a wall. A woman, is standing next to him.    ## True
+[2021-11-11 21:30:52] - INFO: Accuracy on val 0.794
+```
+
  ## 模型详细解析
 - [x] [1. BERT原理与NSL和MLM](https://www.ylkz.life/deeplearning/p10631450/) <br>
 - [x] [2. 从零实现BERT网络模型](https://www.ylkz.life/deeplearning/p10602241/) 　　　[代码](model/BasicBert)
 - [ ] [3. 基于BERT预训练模型的中文文本分类任务](https://www.ylkz.life) 　　　[代码](model/DownstreamTasks/BertForSentenceClassification.py)
 - [ ] [4. 基于BERT预训练模型的英文文本蕴含任务](https://www.ylkz.life) 　　　[代码](model/DownstreamTasks/BertForSentenceClassification.py)
 - [ ] [5. 基于BERT预训练模型的英文多选项任务](https://www.ylkz.life) 　　　[代码](model/DownstreamTasks/BertForMultipleChoice.py)
-- [ ] [6. 基于BERT预训练模型的中文问答任务](https://www.ylkz.life) 　　　[代码](model/DownstreamTasks/BertForQuestionAnswering.py)
+- [ ] [6. 基于BERT预训练模型的英文问答任务](https://www.ylkz.life) 　　　[代码](model/DownstreamTasks/BertForQuestionAnswering.py)
 - [ ] [7. 基于NSL和MLM任务从头训练BERT任务](https://www.ylkz.life)
 
