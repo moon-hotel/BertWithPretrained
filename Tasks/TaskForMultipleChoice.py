@@ -95,14 +95,16 @@ def train(config):
             if idx % 10 == 0:
                 logging.info(f"Epoch: {epoch}, Batch[{idx}/{len(train_iter)}], "
                              f"Train loss :{loss.item():.3f}, Train acc: {acc:.3f}")
+            if idx % 100 == 0:
+                y_pred = logits.argmax(1).cpu()
+                show_result(qa, y_pred, data_loader.vocab.itos, num_show=1)
         end_time = time.time()
         train_loss = losses / len(train_iter)
         logging.info(f"Epoch: {epoch}, Train loss: "
                      f"{train_loss:.3f}, Epoch time = {(end_time - start_time):.3f}s")
         if (epoch + 1) % config.model_val_per_epoch == 0:
-            acc, y_pred = evaluate(val_iter, model,
-                                   config.device, inference=False)
-            show_result(val_iter, y_pred, data_loader.vocab.itos)
+            acc, _ = evaluate(val_iter, model,
+                              config.device, inference=False)
             logging.info(f"Accuracy on val {acc:.3f}")
             if acc > max_acc:
                 max_acc = acc
@@ -129,7 +131,7 @@ def inference(config):
     test_iter = data_loader.load_train_val_test_data(test_file_path=config.test_file_path,
                                                      only_test=True)
     y_pred = evaluate(test_iter, model, config.device, inference=True)
-    show_result(test_iter, y_pred, data_loader.vocab.itos)
+    logging.info(f"预测标签为：{y_pred.tolist()}")
 
 
 def evaluate(data_iter, model, device, inference=False):
@@ -150,27 +152,26 @@ def evaluate(data_iter, model, device, inference=False):
         return acc_sum / n, np.hstack(y_pred)
 
 
-def show_result(data_iter, y_pred, itos=None, num_show=5):
+def show_result(qas, y_pred, itos=None, num_show=5):
     count = 0
-    for qas, _, _, _ in data_iter:
-        num_samples, num_choice, seq_len = qas.size()
-        qas = qas.reshape(-1)
-        strs = np.array([itos[t] for t in qas]).reshape(-1, seq_len)
-        for i in range(num_samples):  # 遍历每个样本
-            s_idx = i * num_choice
-            e_idx = s_idx + num_choice
-            sample = strs[s_idx:e_idx]
-            if count == num_show:
-                return
-            count += 1
-            for j, item in enumerate(sample):  # 每个样本的四个答案
-                q, a, _ = " ".join(item[1:]).replace(" .", ".").replace(" ##", "").split('[SEP]')
-                if y_pred[i] == j:
-                    a += " ## True"
-                else:
-                    a += " ## False"
-                logging.info(q + a)
-            logging.info("\n")
+    num_samples, num_choice, seq_len = qas.size()
+    qas = qas.reshape(-1)
+    strs = np.array([itos[t] for t in qas]).reshape(-1, seq_len)
+    for i in range(num_samples):  # 遍历每个样本
+        s_idx = i * num_choice
+        e_idx = s_idx + num_choice
+        sample = strs[s_idx:e_idx]
+        if count == num_show:
+            return
+        count += 1
+        for j, item in enumerate(sample):  # 每个样本的四个答案
+            q, a, _ = " ".join(item[1:]).replace(" .", ".").replace(" ##", "").split('[SEP]')
+            if y_pred[i] == j:
+                a += " ## True"
+            else:
+                a += " ## False"
+            logging.info(f"[{count + 1}/{num_show}] ### {q + a}")
+        logging.info("\n")
 
 
 if __name__ == '__main__':
