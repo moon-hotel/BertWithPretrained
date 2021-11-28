@@ -11,6 +11,8 @@ import torch
 import os
 import time
 import numpy as np
+from tqdm import tqdm
+import json
 
 
 class ModelConfig:
@@ -24,6 +26,8 @@ class ModelConfig:
         self.test_file_path = os.path.join(self.dataset_dir, 'test1.json')
         self.model_save_dir = os.path.join(self.project_dir, 'cache')
         self.logs_save_dir = os.path.join(self.project_dir, 'logs')
+        self.model_save_path = os.path.join(self.model_save_dir, 'model.pt')
+        self.prediction_save_path = os.path.join(self.model_save_dir, 'predictions.json')
         self.is_sample_shuffle = True
         self.batch_size = 16
         self.max_sen_len = None
@@ -49,9 +53,8 @@ class ModelConfig:
 def train(config):
     model = BertForQuestionAnswering(config,
                                      config.pretrained_model_dir)
-    model_save_path = os.path.join(config.model_save_dir, 'model.pt')
-    if os.path.exists(model_save_path):
-        loaded_paras = torch.load(model_save_path)
+    if os.path.exists(config.model_save_path):
+        loaded_paras = torch.load(config.model_save_path)
         model.load_state_dict(loaded_paras)
         logging.info("## 成功载入已有模型，进行追加训练......")
     model = model.to(config.device)
@@ -73,7 +76,7 @@ def train(config):
     for epoch in range(config.epochs):
         losses = 0
         start_time = time.time()
-        for idx, (batch_input, batch_seg, batch_label) in enumerate(train_iter):
+        for idx, (batch_input, batch_seg, batch_label, _) in enumerate(train_iter):
             batch_input = batch_input.to(config.device)  # [src_len, batch_size]
             batch_seg = batch_seg.to(config.device)
             batch_label = batch_label.to(config.device)
@@ -104,19 +107,15 @@ def train(config):
         logging.info(f"Epoch: {epoch}, Train loss: "
                      f"{train_loss:.3f}, Epoch time = {(end_time - start_time):.3f}s")
         if (epoch + 1) % config.model_val_per_epoch == 0:
-            acc, y_pred = evaluate(val_iter, model,
-                                   config.device,
-                                   data_loader.PAD_IDX,
-                                   inference=False)
-            a_batch = next(iter(val_iter))
-            batch_input = a_batch[0]
-            y_true = [a_batch[2][:, 0], a_batch[2][:, 1]]
-            show_result(batch_input, data_loader.vocab.itos, y_pred=y_pred, y_true=y_true)
+            acc, _ = evaluate(val_iter, model,
+                              config.device,
+                              data_loader.PAD_IDX,
+                              inference=False)
             logging.info(f" ### Accuracy on val: {round(acc, 4)}")
 
             if acc > max_acc:
                 max_acc = acc
-                torch.save(model.state_dict(), model_save_path)
+                torch.save(model.state_dict(), config.model_save_path)
 
 
 def evaluate(data_iter, model, device, PAD_IDX, inference=False):
@@ -124,7 +123,7 @@ def evaluate(data_iter, model, device, PAD_IDX, inference=False):
     with torch.no_grad():
         acc_sum, n = 0.0, 0
         y_start_pred, y_end_pred = [], []
-        for batch_input, batch_seg, batch_label in data_iter:
+        for batch_input, batch_seg, batch_label, _ in data_iter:
             batch_input = batch_input.to(device)  # [src_len, batch_size]
             batch_seg = batch_seg.to(device)
             batch_label = batch_label.to(device)
@@ -179,6 +178,48 @@ def show_result(batch_input, itos, num_show=5, y_pred=None, y_true=None):
         count += 1
 
 
+def inference(config):
+    bert_tokenize = BertTokenizer.from_pretrained(config.pretrained_model_dir).tokenize
+    data_loader = LoadSQuADQuestionAnsweringDataset(vocab_path=config.vocab_path,
+                                                    tokenizer=bert_tokenize,
+                                                    batch_size=config.batch_size,
+                                                    max_sen_len=config.max_sen_len,
+                                                    max_position_embeddings=config.max_position_embeddings,
+                                                    pad_index=config.pad_token_id,
+                                                    is_sample_shuffle=config.is_sample_shuffle)
+    test_iter = data_loader.load_train_val_test_data(test_file_path=config.test_file_path,
+                                                     only_test=True)
+    model = BertForQuestionAnswering(config,
+                                     config.pretrained_model_dir)
+    if os.path.exists(config.model_save_path):
+        loaded_paras = torch.load(config.model_save_path)
+        model.load_state_dict(loaded_paras)
+        logging.info("## 成功载入已有模型，开始进行推理......")
+    else:
+        raise ValueError(f"## 模型{config.model_save_path}不存在，请检查路径或者先训练模型......")
+
+    model = model.to(config.device)
+    y_pred = evaluate(test_iter, model, config.device,
+                      data_loader.PAD_IDX, inference=True)
+
+    sample_id = 0
+    results = {}
+    logging.info(f"## 正在将预测后的结果写入文件{config.prediction_save_path}……")
+    for batch_input, _, _, batch_qid in tqdm(test_iter, ncols=80, desc="正在写入预测结果"):
+        for i in range(batch_input.size(-1)):
+            sample = batch_input.transpose(0, 1)[i]
+            start_pos, end_pos = y_pred[0][sample_id], y_pred[1][sample_id]
+            strs = [data_loader.vocab.itos[s] for s in sample]  # 原始tokens
+            answer = " ".join(strs[start_pos:(end_pos + 1)]).replace(" ##", "")
+            results[batch_qid[i]] = answer
+            sample_id += 1
+    with open(config.prediction_save_path, 'w') as f:
+        results = json.dumps(results, ensure_ascii=False, indent=4)
+        f.write(f"{results}")
+    logging.info(f"## 预测结果写入完毕！")
+
+
 if __name__ == '__main__':
     model_config = ModelConfig()
     train(config=model_config)
+    inference(model_config)
