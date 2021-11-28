@@ -58,6 +58,6 @@ class BertForQuestionAnswering(nn.Module):
             # 同时如果不加ignore_index的话，那么可能会影响模型在正常情况下的语义理解能力
             start_loss = loss_fct(start_logits, start_positions)
             end_loss = loss_fct(end_logits, end_positions)
-            return (start_loss + end_loss) / 2
+            return (start_loss + end_loss) / 2, start_logits, end_logits
         else:
             return start_logits, end_logits  # [batch_size,src_len]
