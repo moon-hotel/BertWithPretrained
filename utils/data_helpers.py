@@ -548,7 +548,7 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
             return test_iter
         train_data, max_sen_len = self.data_process(filepath=train_file_path,
                                                     is_training=True)  # 得到处理好的所有样本
-        train_data, val_data = train_test_split(train_data, test_size=0.3, random_state=2021)
+        _, val_data = train_test_split(train_data, test_size=0.3, random_state=2021)
         if self.max_sen_len == 'same':
             self.max_sen_len = max_sen_len
         train_iter = DataLoader(train_data, batch_size=self.batch_size,  # 构造DataLoader
