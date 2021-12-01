@@ -30,9 +30,13 @@ class BertSelfAttention(nn.Module):
 
     def __init__(self, config):
         super(BertSelfAttention, self).__init__()
-        self.multi_head_attention = MyMultiheadAttention(embed_dim=config.hidden_size,
-                                                         num_heads=config.num_attention_heads,
-                                                         dropout=config.attention_probs_dropout_prob)
+        if 'use_torch_multi_head' in config.__dict__ and config.use_torch_multi_head:
+            MultiHeadAttention = nn.MultiheadAttention
+        else:
+            MultiHeadAttention = MyMultiheadAttention
+        self.multi_head_attention = MultiHeadAttention(embed_dim=config.hidden_size,
+                                                       num_heads=config.num_attention_heads,
+                                                       dropout=config.attention_probs_dropout_prob)
 
     def forward(self, query, key, value, attn_mask=None, key_padding_mask=None):
         """
@@ -212,6 +216,35 @@ class BertPooler(nn.Module):
         return pooled_output  # [batch_size, hidden_size]
 
 
+def format_paras_for_torch(loaded_paras_names, loaded_paras):
+    """
+    格式化成符合torch框架中MultiHeadAttention的参数形式
+    :param loaded_paras_names:
+    :param loaded_paras:
+    :return:
+    """
+    qkv_weight_names = ['query.weight', 'key.weight', 'value.weight']
+    qkv_bias_names = ['query.bias', 'key.bias', 'value.bias']
+    qkv_weight, qkv_bias = [], []
+    torch_paras = []
+    for i in range(len(loaded_paras_names)):
+        para_name_in_pretrained = loaded_paras_names[i]
+        para_name = ".".join(para_name_in_pretrained.split('.')[-2:])
+        if para_name in qkv_weight_names:
+            qkv_weight.append(loaded_paras[para_name_in_pretrained])
+        elif para_name in qkv_bias_names:
+            qkv_bias.append(loaded_paras[para_name_in_pretrained])
+        else:
+            torch_paras.append(loaded_paras[para_name_in_pretrained])
+        if len(qkv_weight) == 3:
+            torch_paras.append(torch.cat(qkv_weight, dim=0))
+            qkv_weight = []
+        if len(qkv_bias) == 3:
+            torch_paras.append(torch.cat(qkv_bias, dim=0))
+            qkv_bias = []
+    return torch_paras
+
+
 class BertModel(nn.Module):
     """
 
@@ -271,9 +304,17 @@ class BertModel(nn.Module):
         state_dict = deepcopy(model.state_dict())
         loaded_paras_names = list(loaded_paras.keys())[:-8]
         model_paras_names = list(state_dict.keys())[1:]
-        for i in range(len(loaded_paras_names)):
-            state_dict[model_paras_names[i]] = loaded_paras[loaded_paras_names[i]]
-            logging.info(f"成功将参数{loaded_paras_names[i]}赋值给{model_paras_names[i]},"
-                         f"参数形状为:{state_dict[model_paras_names[i]].size()}")
+        if 'use_torch_multi_head' in config.__dict__ and config.use_torch_multi_head:
+            logging.info(f"## 注意，正在使用torch框架中的MultiHeadAttention实现")
+            torch_paras = format_paras_for_torch(loaded_paras_names, loaded_paras)
+            for i in range(len(model_paras_names)):
+                state_dict[model_paras_names[i]] = torch_paras[i]
+                logging.info(f"## 成功赋值参数:{model_paras_names[i]},形状为: {torch_paras[i].size()}")
+        else:
+            logging.info(f"## 注意，正在使用本地MyTransformer中的MyMultiHeadAttention实现")
+            for i in range(len(loaded_paras_names)):
+                state_dict[model_paras_names[i]] = loaded_paras[loaded_paras_names[i]]
+                logging.info(f"## 成功将参数:{loaded_paras_names[i]}赋值给{model_paras_names[i]},"
+                             f"参数形状为:{state_dict[model_paras_names[i]].size()}")
         model.load_state_dict(state_dict)
         return model

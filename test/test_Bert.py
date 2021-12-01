@@ -8,11 +8,13 @@ from model.BasicBert.Bert import BertEncoder
 from model.BasicBert.Bert import BertModel
 from model.BasicBert.BertConfig import BertConfig
 import torch
-import torch.nn as nn
+from utils.log_helper import logger_init
 
 if __name__ == '__main__':
+    logger_init()
     json_file = '../bert_base_chinese/config.json'
     config = BertConfig.from_json_file(json_file)
+    config.__dict__['use_torch_multi_head'] = True # 表示使用 torch框架中的MultiHeadAttention 注意力实现方法
     src = torch.tensor([[1, 3, 5, 7, 9, 2, 3], [2, 4, 6, 8, 10, 0, 0]], dtype=torch.long)
     src = src.transpose(0, 1)  # [src_len, batch_size]
     print(f"input shape [src_len,batch_size]: ", src.shape)
@@ -54,5 +56,5 @@ if __name__ == '__main__':
     for param_tensor in bert_model.state_dict():
         print(param_tensor, "\t", bert_model.state_dict()[param_tensor].size())
 
-    print(f"\n  =======  BertModel载入预训练模型： ========")
-    # model = BertModel.from_pretrained(config,pretrained_model_dir="../bert_base_chinese")
+    print(f"\n  =======  测试BertModel载入预训练模型： ========")
+    model = BertModel.from_pretrained(config, pretrained_model_dir="../bert_base_chinese")
