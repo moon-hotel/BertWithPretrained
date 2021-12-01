@@ -88,7 +88,10 @@ def cache(func):
 
     def wrapper(*args, **kwargs):
         filepath = kwargs['filepath']
-        data_path = filepath[:-len(filepath.split('.')[-1])] + 'pt'
+        postfix = ""
+        if "postfix" in kwargs:
+            postfix = kwargs['postfix'] + '_' + str(args[0].doc_stride) + '_' + str(args[0].max_sen_len)
+        data_path = filepath.split('.')[0] + '_' + postfix + '.pt'
         if not os.path.exists(data_path):
             logging.info(f"缓存文件 {data_path} 不存在，重新处理并缓存！")
             all_data, max_len = func(*args, **kwargs)
@@ -332,9 +335,10 @@ class LoadMultipleChoiceDataset(LoadSingleSentenceClassificationDataset):
 
 
 class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset):
-    def __init__(self, **kwargs):
+    def __init__(self, doc_stride=64, with_sliding=True, max_query_length=64, **kwargs):
         super(LoadSQuADQuestionAnsweringDataset, self).__init__(**kwargs)
-        pass
+        self.doc_stride = doc_stride
+        self.with_sliding = with_sliding
 
     @staticmethod
     def get_format_text_and_word_offset(text):
@@ -471,7 +475,8 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
         return start_position, end_position
 
     @cache
-    def data_process(self, filepath, is_training):
+    def data_process_without_sliding(self, filepath, is_training, postfix='no_sliding'):
+        logging.info(f"## 不使用窗口滑动滑动，postfix={postfix}")
         examples = self.preprocessing(filepath, is_training)
         max_len = 0
         all_data = []
@@ -516,6 +521,107 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
             all_data.append([input_ids, seg, start_position, end_position, answer_text, example[0]])
         return all_data, max_len
 
+    @cache
+    def data_process_with_sliding(self, filepath, is_training, postfix='sliding'):
+        logging.info(f"## 使用窗口滑动滑动，postfix={postfix}+{self.doc_stride}")
+        examples = self.preprocessing(filepath, is_training)
+        all_data = []
+        for example in tqdm(examples, ncols=80):
+            question_tokens = self.tokenizer(example[1])
+            question_ids = [self.vocab[token] for token in question_tokens]
+            question_ids = [self.CLS_IDX] + question_ids + [self.SEP_IDX]
+            context_tokens = self.tokenizer(example[3])
+            context_ids = [self.vocab[token] for token in context_tokens]
+            logging.debug(f"## 正在预处理数据 {__name__} is_training = {is_training}")
+            logging.debug(f"## 问题 id: {example[0]}")
+            logging.debug(f"## 原始问题 text: {example[1]}")
+            logging.debug(f"## 原始描述 text: {example[3]}")
+            if is_training:
+                start_position, end_position = example[4], example[5]
+                answer_text = example[2]
+                answer_tokens = self.tokenizer(answer_text)
+                start_position, end_position = self.improve_answer_span(context_tokens,
+                                                                        answer_tokens,
+                                                                        start_position,
+                                                                        end_position)
+                rest_len = self.max_sen_len - len(question_ids) - 1
+                context_ids_len = len(context_ids)
+                logging.debug(f"{context_ids_len},rest_len = {rest_len}")
+                if context_ids_len > rest_len:  # 长度超过max_sen_len,需要进行滑动窗口
+                    s_idx, e_idx = 0, rest_len
+                    while True:
+                        # We can have documents that are longer than the maximum sequence length.
+                        # To deal with this we do a sliding window approach, where we take chunks
+                        # of the up to our max length with a stride of `doc_stride`.
+                        tmp_context_ids = context_ids[s_idx:e_idx]
+                        tmp_context_tokens = [self.vocab.itos[item] for item in tmp_context_ids]
+                        logging.debug(f"## 滑动窗口范围：{s_idx, e_idx}")
+                        logging.debug(f"## 滑动窗口取值：{tmp_context_tokens}")
+                        if start_position >= s_idx and end_position <= e_idx:
+                            logging.debug(f"## 滑动窗口中存在答案 -----> ")
+                            new_start_position = start_position - s_idx
+                            new_end_position = new_start_position + (end_position - start_position)
+                            input_ids = torch.tensor(question_ids + tmp_context_ids + [self.SEP_IDX])
+                            seg = [0] * len(question_ids) + [1] * (len(input_ids) - len(question_ids))
+                            seg = torch.tensor(seg)
+                            new_start_position += len(question_ids)
+                            new_end_position += len(question_ids)
+                            all_data.append(
+                                [input_ids, seg, new_start_position, new_end_position, answer_text, example[0]])
+                            input_tokens = ['[CLS]'] + question_tokens + ['[SEP]'] + tmp_context_tokens + ['[SEP]']
+                            logging.debug(f"## 原始答案：{answer_text} <===>处理后的答案："
+                                          f"{' '.join(input_tokens[new_start_position:(new_end_position + 1)])}")
+                            logging.debug(f"## input_tokens: {input_tokens}")
+                            logging.debug(f"## input_ids:{input_ids.tolist()}")
+                            logging.debug(f"## segment ids:{seg.tolist()}")
+                            logging.debug(f"## start pos:{new_start_position}")
+                            logging.debug(f"## end pos:{new_end_position}")
+                            logging.debug("======================\n")
+                        if e_idx > context_ids_len:
+                            break
+                        s_idx += self.doc_stride
+                        e_idx += self.doc_stride
+                else:
+                    input_ids = torch.tensor(question_ids + context_ids + [self.SEP_IDX])
+                    input_tokens = ['[CLS]'] + question_tokens + ['[SEP]'] + context_tokens + ['[SEP]']
+                    seg = [0] * len(question_ids) + [1] * (len(input_ids) - len(question_ids))
+                    seg = torch.tensor(seg)
+                    start_position += (len(question_ids))
+                    end_position += (len(question_ids))
+                    all_data.append([input_ids, seg, start_position, end_position, answer_text, example[0]])
+                    logging.debug(f"原始答案：{answer_text} <===>处理后的答案："
+                                  f"{' '.join(input_tokens[start_position:(end_position + 1)])}")
+                    logging.debug(f"## input_tokens: {input_tokens}")
+                    logging.debug(f"## input_ids:{input_ids.tolist()}")
+                    logging.debug(f"## segment ids:{seg.tolist()}")
+                    logging.debug(f"## start pos:{start_position}")
+                    logging.debug(f"## end pos:{end_position}")
+                    logging.debug("======================\n")
+
+            else:
+                input_ids = torch.tensor(question_ids + context_ids + [self.SEP_IDX])
+                input_tokens = ['[CLS]'] + question_tokens + ['[SEP]'] + context_tokens + ['[SEP]']
+                seg = [0] * len(question_ids) + [1] * (len(input_ids) - len(question_ids))
+                seg = torch.tensor(seg)
+                all_data.append([input_ids, seg, -1, -1, None, example[0]])
+                logging.debug(f"## input_tokens: {input_tokens}")
+                logging.debug(f"## input_ids:{input_ids.tolist()}")
+                logging.debug(f"## segment ids:{seg.tolist()}")
+                logging.debug(f"## start pos:{-1}")
+                logging.debug(f"## end pos:{-1}")
+                logging.debug("======================\n")
+        return all_data, self.max_sen_len
+
+    def data_process(self, filepath, is_training=False):
+        if self.with_sliding:
+            return self.data_process_with_sliding(filepath=filepath,
+                                                  is_training=is_training,
+                                                  postfix='sliding')
+        else:
+            return self.data_process_without_sliding(filepath=filepath,
+                                                     is_training=is_training,
+                                                     postfix='no_sliding')
+
     def generate_batch(self, data_batch):
         batch_input, batch_seg, batch_label, batch_qid = [], [], [], []
         for item in data_batch:
@@ -545,9 +651,9 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                                shuffle=False,
                                collate_fn=self.generate_batch)
         if only_test:
+            logging.info(f"## 成功返回测试集，一共包含样本{len(test_iter)}条")
             return test_iter
-        train_data, max_sen_len = self.data_process(filepath=train_file_path,
-                                                    is_training=True)  # 得到处理好的所有样本
+        train_data, max_sen_len = self.data_process(filepath=train_file_path, is_training=True)  # 得到处理好的所有样本
         _, val_data = train_test_split(train_data, test_size=0.3, random_state=2021)
         if self.max_sen_len == 'same':
             self.max_sen_len = max_sen_len
@@ -555,4 +661,5 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                                 shuffle=self.is_sample_shuffle, collate_fn=self.generate_batch)
         val_iter = DataLoader(val_data, batch_size=self.batch_size,  # 构造DataLoader
                               shuffle=False, collate_fn=self.generate_batch)
+        logging.info(f"## 成功返回训练集（{len(train_iter)}）条、开发集（{len(val_iter)}）条、测试集（{len(test_iter)}）条")
         return train_iter, test_iter, val_iter
