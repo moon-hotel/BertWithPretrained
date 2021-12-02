@@ -90,7 +90,10 @@ def cache(func):
         filepath = kwargs['filepath']
         postfix = ""
         if "postfix" in kwargs:
-            postfix = kwargs['postfix'] + '_' + str(args[0].doc_stride) + '_' + str(args[0].max_sen_len)
+            doc_stride = str(args[0].doc_stride)
+            max_sen_len = str(args[0].max_sen_len)
+            max_query_length = str(args[0].max_query_length)
+            postfix = kwargs['postfix'] + '_' + doc_stride + '_' + max_sen_len + '_' + max_query_length
         data_path = filepath.split('.')[0] + '_' + postfix + '.pt'
         if not os.path.exists(data_path):
             logging.info(f"缓存文件 {data_path} 不存在，重新处理并缓存！")
@@ -335,10 +338,23 @@ class LoadMultipleChoiceDataset(LoadSingleSentenceClassificationDataset):
 
 
 class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset):
+    """
+    Args:
+        doc_stride: When splitting up a long document into chunks, how much stride to
+                    take between chunks.
+                    当上下文过长时，按滑动窗口进行移动，doc_stride表示每次移动的距离
+        with_sliding: 当其为 False 时，参数doc_stride失效，即不进行窗口滑动
+        max_query_length: The maximum number of tokens for the question. Questions longer than
+                    this will be truncated to this length.
+                    限定问题的最大长度，过长时截断
+
+    """
+
     def __init__(self, doc_stride=64, with_sliding=True, max_query_length=64, **kwargs):
         super(LoadSQuADQuestionAnsweringDataset, self).__init__(**kwargs)
         self.doc_stride = doc_stride
         self.with_sliding = with_sliding
+        self.max_query_length = max_query_length
 
     @staticmethod
     def get_format_text_and_word_offset(text):
@@ -392,7 +408,7 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
             raw_data = json.loads(f.read())
             data = raw_data['data']
         examples = []
-        for i in tqdm(range(len(data)), ncols=80):  # 遍历每一个paragraphs
+        for i in tqdm(range(len(data)), ncols=80, desc="正在遍历每一个段落"):  # 遍历每一个paragraphs
             paragraphs = data[i]['paragraphs']  # 取第i个paragraphs
             for j in range(len(paragraphs)):  # 遍历第i个paragraphs的每个context
                 context = paragraphs[j]['context']  # 取第j个context
@@ -480,8 +496,10 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
         examples = self.preprocessing(filepath, is_training)
         max_len = 0
         all_data = []
-        for example in tqdm(examples, ncols=80):
+        for example in tqdm(examples, ncols=80, desc="正在遍历每个样本"):
             question_tokens = self.tokenizer(example[1])
+            if len(question_tokens) > self.max_query_length:
+                question_tokens = question_tokens[:self.max_query_length]
             question_ids = [self.vocab[token] for token in question_tokens]
             question_ids = [self.CLS_IDX] + question_ids + [self.SEP_IDX]
             context_tokens = self.tokenizer(example[3])
@@ -526,8 +544,10 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
         logging.info(f"## 使用窗口滑动滑动，postfix={postfix}+{self.doc_stride}")
         examples = self.preprocessing(filepath, is_training)
         all_data = []
-        for example in tqdm(examples, ncols=80):
+        for example in tqdm(examples, ncols=80, desc="正在遍历每个样本"):
             question_tokens = self.tokenizer(example[1])
+            if len(question_tokens) > self.max_query_length:  # 问题过长进行截取
+                question_tokens = question_tokens[:self.max_query_length]
             question_ids = [self.vocab[token] for token in question_tokens]
             question_ids = [self.CLS_IDX] + question_ids + [self.SEP_IDX]
             context_tokens = self.tokenizer(example[3])
@@ -536,6 +556,7 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
             logging.debug(f"## 问题 id: {example[0]}")
             logging.debug(f"## 原始问题 text: {example[1]}")
             logging.debug(f"## 原始描述 text: {example[3]}")
+            start_position, end_position, answer_text = -1, -1, None
             if is_training:
                 start_position, end_position = example[4], example[5]
                 answer_text = example[2]
@@ -544,71 +565,62 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                                                                         answer_tokens,
                                                                         start_position,
                                                                         end_position)
-                rest_len = self.max_sen_len - len(question_ids) - 1
-                context_ids_len = len(context_ids)
-                logging.debug(f"{context_ids_len},rest_len = {rest_len}")
-                if context_ids_len > rest_len:  # 长度超过max_sen_len,需要进行滑动窗口
-                    s_idx, e_idx = 0, rest_len
-                    while True:
-                        # We can have documents that are longer than the maximum sequence length.
-                        # To deal with this we do a sliding window approach, where we take chunks
-                        # of the up to our max length with a stride of `doc_stride`.
-                        tmp_context_ids = context_ids[s_idx:e_idx]
-                        tmp_context_tokens = [self.vocab.itos[item] for item in tmp_context_ids]
-                        logging.debug(f"## 滑动窗口范围：{s_idx, e_idx}")
-                        logging.debug(f"## 滑动窗口取值：{tmp_context_tokens}")
-                        if start_position >= s_idx and end_position <= e_idx:
+            rest_len = self.max_sen_len - len(question_ids) - 1
+            context_ids_len = len(context_ids)
+            logging.debug(f"## 上下文长度为：{context_ids_len}, 剩余长度 rest_len 为 ： {rest_len}")
+            if context_ids_len > rest_len:  # 长度超过max_sen_len,需要进行滑动窗口
+                logging.debug(f"## 进入滑动窗口 ")
+                s_idx, e_idx = 0, rest_len
+                while True:
+                    # We can have documents that are longer than the maximum sequence length.
+                    # To deal with this we do a sliding window approach, where we take chunks
+                    # of the up to our max length with a stride of `doc_stride`.
+                    tmp_context_ids = context_ids[s_idx:e_idx]
+                    tmp_context_tokens = [self.vocab.itos[item] for item in tmp_context_ids]
+                    logging.debug(f"## 滑动窗口范围：{s_idx, e_idx}")
+                    # logging.debug(f"## 滑动窗口取值：{tmp_context_tokens}")
+                    input_ids = torch.tensor(question_ids + tmp_context_ids + [self.SEP_IDX])
+                    input_tokens = ['[CLS]'] + question_tokens + ['[SEP]'] + tmp_context_tokens + ['[SEP]']
+                    seg = [0] * len(question_ids) + [1] * (len(input_ids) - len(question_ids))
+                    seg = torch.tensor(seg)
+                    if is_training:
+                        new_start_position, new_end_position = 0, 0
+                        if start_position >= s_idx and end_position <= e_idx:  # in train
                             logging.debug(f"## 滑动窗口中存在答案 -----> ")
                             new_start_position = start_position - s_idx
                             new_end_position = new_start_position + (end_position - start_position)
-                            input_ids = torch.tensor(question_ids + tmp_context_ids + [self.SEP_IDX])
-                            seg = [0] * len(question_ids) + [1] * (len(input_ids) - len(question_ids))
-                            seg = torch.tensor(seg)
+
                             new_start_position += len(question_ids)
                             new_end_position += len(question_ids)
-                            all_data.append(
-                                [input_ids, seg, new_start_position, new_end_position, answer_text, example[0]])
-                            input_tokens = ['[CLS]'] + question_tokens + ['[SEP]'] + tmp_context_tokens + ['[SEP]']
                             logging.debug(f"## 原始答案：{answer_text} <===>处理后的答案："
                                           f"{' '.join(input_tokens[new_start_position:(new_end_position + 1)])}")
-                            logging.debug(f"## input_tokens: {input_tokens}")
-                            logging.debug(f"## input_ids:{input_ids.tolist()}")
-                            logging.debug(f"## segment ids:{seg.tolist()}")
-                            logging.debug(f"## start pos:{new_start_position}")
-                            logging.debug(f"## end pos:{new_end_position}")
-                            logging.debug("======================\n")
-                        if e_idx > context_ids_len:
-                            break
-                        s_idx += self.doc_stride
-                        e_idx += self.doc_stride
-                else:
-                    input_ids = torch.tensor(question_ids + context_ids + [self.SEP_IDX])
-                    input_tokens = ['[CLS]'] + question_tokens + ['[SEP]'] + context_tokens + ['[SEP]']
-                    seg = [0] * len(question_ids) + [1] * (len(input_ids) - len(question_ids))
-                    seg = torch.tensor(seg)
-                    start_position += (len(question_ids))
-                    end_position += (len(question_ids))
-                    all_data.append([input_ids, seg, start_position, end_position, answer_text, example[0]])
-                    logging.debug(f"原始答案：{answer_text} <===>处理后的答案："
-                                  f"{' '.join(input_tokens[start_position:(end_position + 1)])}")
+                        all_data.append([input_ids, seg, new_start_position, new_end_position, answer_text, example[0]])
+                        logging.debug(f"## start pos:{new_start_position}")
+                        logging.debug(f"## end pos:{new_end_position}")
+                    else:
+                        all_data.append([input_ids, seg, start_position, end_position, answer_text, example[0]])
+                        logging.debug(f"## start pos:{start_position}")
+                        logging.debug(f"## end pos:{end_position}")
                     logging.debug(f"## input_tokens: {input_tokens}")
                     logging.debug(f"## input_ids:{input_ids.tolist()}")
                     logging.debug(f"## segment ids:{seg.tolist()}")
-                    logging.debug(f"## start pos:{start_position}")
-                    logging.debug(f"## end pos:{end_position}")
                     logging.debug("======================\n")
-
+                    if e_idx >= context_ids_len:
+                        break
+                    s_idx += self.doc_stride
+                    e_idx += self.doc_stride
             else:
                 input_ids = torch.tensor(question_ids + context_ids + [self.SEP_IDX])
                 input_tokens = ['[CLS]'] + question_tokens + ['[SEP]'] + context_tokens + ['[SEP]']
                 seg = [0] * len(question_ids) + [1] * (len(input_ids) - len(question_ids))
                 seg = torch.tensor(seg)
-                all_data.append([input_ids, seg, -1, -1, None, example[0]])
+                if is_training:
+                    start_position += (len(question_ids))
+                    end_position += (len(question_ids))
+                all_data.append([input_ids, seg, start_position, end_position, answer_text, example[0]])
                 logging.debug(f"## input_tokens: {input_tokens}")
                 logging.debug(f"## input_ids:{input_ids.tolist()}")
                 logging.debug(f"## segment ids:{seg.tolist()}")
-                logging.debug(f"## start pos:{-1}")
-                logging.debug(f"## end pos:{-1}")
                 logging.debug("======================\n")
         return all_data, self.max_sen_len
 
@@ -645,7 +657,6 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                                  val_file_path=None,
                                  test_file_path=None,
                                  only_test=True):
-
         test_data, _ = self.data_process(filepath=test_file_path, is_training=False)
         test_iter = DataLoader(test_data, batch_size=self.batch_size,
                                shuffle=False,
