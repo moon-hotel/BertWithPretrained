@@ -398,7 +398,8 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
         :param is_training:
         :return:
         返回形式为一个二维列表，内层列表中的各个元素分别为 ['问题ID','原始问题文本','答案文本','context文本',
-        '答案在context中的开始位置','答案在context中的结束位置']，如下示例所示：
+        '答案在context中的开始位置','答案在context中的结束位置']，并且二维列表中的一个元素称之为一个example,即一个example由六部分组成
+        如下示例所示：
         [['5733be284776f41900661182', 'To whom did the Virgin Mary allegedly appear in 1858 in Lourdes France?',
         'Saint Bernadette Soubirous', 'Architecturally, the school has a Catholic character......',
         90, 92],
@@ -539,12 +540,25 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
             all_data.append([input_ids, seg, start_position, end_position, answer_text, example[0]])
         return all_data, max_len
 
-    @cache
+    # @cache
     def data_process_with_sliding(self, filepath, is_training, postfix='sliding'):
+        """
+
+        :param filepath:
+        :param is_training:
+        :param postfix:
+        :return: [[example_id, feature_id, input_ids, seg, start_position,
+                    end_position, answer_text, example[0]],[],[],[]...]
+                  分别对应：[原始样本Id,训练特征id,input_ids，seg，开始，结束，答案文本，问题id]
+        """
         logging.info(f"## 使用窗口滑动滑动，postfix={postfix}+{self.doc_stride}")
         examples = self.preprocessing(filepath, is_training)
         all_data = []
-        for example in tqdm(examples, ncols=80, desc="正在遍历每个样本"):
+        example_id, feature_id = 100000, 0
+        # 由于采用了滑动窗口，所以一个example可能构造得到多个训练样本（即这里被称为feature）；
+        # 因此，需要对其分别进行编号，并且这主要是用在预测后的结果后处理当中，训练时用不到
+        # 当然，这里只使用feature_id即可，因为每个example其实对应的就是一个问题，所以问题ID和example_id本质上是一样的
+        for example in tqdm(examples, ncols=80, desc="正在遍历每个问题（样本）"):
             question_tokens = self.tokenizer(example[1])
             if len(question_tokens) > self.max_query_length:  # 问题过长进行截取
                 question_tokens = question_tokens[:self.max_query_length]
@@ -552,6 +566,7 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
             question_ids = [self.CLS_IDX] + question_ids + [self.SEP_IDX]
             context_tokens = self.tokenizer(example[3])
             context_ids = [self.vocab[token] for token in context_tokens]
+            logging.debug(f"<<<<<<<<  进入新的example  >>>>>>>>>")
             logging.debug(f"## 正在预处理数据 {__name__} is_training = {is_training}")
             logging.debug(f"## 问题 id: {example[0]}")
             logging.debug(f"## 原始问题 text: {example[1]}")
@@ -569,7 +584,7 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
             context_ids_len = len(context_ids)
             logging.debug(f"## 上下文长度为：{context_ids_len}, 剩余长度 rest_len 为 ： {rest_len}")
             if context_ids_len > rest_len:  # 长度超过max_sen_len,需要进行滑动窗口
-                logging.debug(f"## 进入滑动窗口 ")
+                logging.debug(f"## 进入滑动窗口 …… ")
                 s_idx, e_idx = 0, rest_len
                 while True:
                     # We can have documents that are longer than the maximum sequence length.
@@ -577,7 +592,7 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                     # of the up to our max length with a stride of `doc_stride`.
                     tmp_context_ids = context_ids[s_idx:e_idx]
                     tmp_context_tokens = [self.vocab.itos[item] for item in tmp_context_ids]
-                    logging.debug(f"## 滑动窗口范围：{s_idx, e_idx}")
+                    logging.debug(f"## 滑动窗口范围：{s_idx, e_idx},example_id: {example_id}, feature_id: {feature_id}")
                     # logging.debug(f"## 滑动窗口取值：{tmp_context_tokens}")
                     input_ids = torch.tensor(question_ids + tmp_context_ids + [self.SEP_IDX])
                     input_tokens = ['[CLS]'] + question_tokens + ['[SEP]'] + tmp_context_tokens + ['[SEP]']
@@ -594,21 +609,25 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                             new_end_position += len(question_ids)
                             logging.debug(f"## 原始答案：{answer_text} <===>处理后的答案："
                                           f"{' '.join(input_tokens[new_start_position:(new_end_position + 1)])}")
-                        all_data.append([input_ids, seg, new_start_position, new_end_position, answer_text, example[0]])
+                        all_data.append([example_id, feature_id, input_ids, seg, new_start_position,
+                                         new_end_position, answer_text, example[0]])
                         logging.debug(f"## start pos:{new_start_position}")
                         logging.debug(f"## end pos:{new_end_position}")
                     else:
-                        all_data.append([input_ids, seg, start_position, end_position, answer_text, example[0]])
+                        all_data.append([example_id, feature_id, input_ids, seg, start_position,
+                                         end_position, answer_text, example[0]])
                         logging.debug(f"## start pos:{start_position}")
                         logging.debug(f"## end pos:{end_position}")
                     logging.debug(f"## input_tokens: {input_tokens}")
                     logging.debug(f"## input_ids:{input_ids.tolist()}")
                     logging.debug(f"## segment ids:{seg.tolist()}")
                     logging.debug("======================\n")
+                    feature_id += 1
                     if e_idx >= context_ids_len:
                         break
                     s_idx += self.doc_stride
                     e_idx += self.doc_stride
+
             else:
                 input_ids = torch.tensor(question_ids + context_ids + [self.SEP_IDX])
                 input_tokens = ['[CLS]'] + question_tokens + ['[SEP]'] + context_tokens + ['[SEP]']
@@ -617,11 +636,15 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                 if is_training:
                     start_position += (len(question_ids))
                     end_position += (len(question_ids))
-                all_data.append([input_ids, seg, start_position, end_position, answer_text, example[0]])
+                all_data.append([example_id, feature_id, input_ids, seg, start_position,
+                                 end_position, answer_text, example[0]])
                 logging.debug(f"## input_tokens: {input_tokens}")
                 logging.debug(f"## input_ids:{input_ids.tolist()}")
                 logging.debug(f"## segment ids:{seg.tolist()}")
                 logging.debug("======================\n")
+                feature_id += 1
+            example_id += 1
+        #  all_data[0]: [原始样本Id,训练特征id,input_ids，seg，开始，结束，答案文本，问题id]
         return all_data, self.max_sen_len
 
     def data_process(self, filepath, is_training=False):
@@ -636,11 +659,15 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
 
     def generate_batch(self, data_batch):
         batch_input, batch_seg, batch_label, batch_qid = [], [], [], []
+        batch_example_id, batch_feature_id = [], []
         for item in data_batch:
-            batch_input.append(item[0])
-            batch_seg.append(item[1])
-            batch_label.append([item[2], item[3]])
-            batch_qid.append(item[5])
+            # item: [原始样本Id,训练特征id,input_ids，seg，开始，结束，答案文本，问题id]
+            batch_example_id.append(item[0])
+            batch_feature_id.append(item[1])
+            batch_input.append(item[2])
+            batch_seg.append(item[3])
+            batch_label.append([item[4], item[5]])
+            batch_qid.append(item[7])
         batch_input = pad_sequence(batch_input,  # [batch_size,max_len]
                                    padding_value=self.PAD_IDX,
                                    batch_first=False,
@@ -650,8 +677,8 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                                  batch_first=False,
                                  max_len=self.max_sen_len)  # [max_len, batch_size]
         batch_label = torch.tensor(batch_label, dtype=torch.long)
-        # [max_len, batch_size] , [max_len, batch_size] , [batch_size,2]
-        return batch_input, batch_seg, batch_label, batch_qid
+        # [max_len, batch_size] , [max_len, batch_size] , [batch_size,2], [batch_size,], [batch_size,]
+        return batch_input, batch_seg, batch_label, batch_qid, batch_example_id, batch_feature_id
 
     def load_train_val_test_data(self, train_file_path=None,
                                  val_file_path=None,
@@ -662,7 +689,7 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                                shuffle=False,
                                collate_fn=self.generate_batch)
         if only_test:
-            logging.info(f"## 成功返回测试集，一共包含样本{len(test_iter)}条")
+            logging.info(f"## 成功返回测试集，一共包含样本{len(test_iter.dataset)}个")
             return test_iter
         train_data, max_sen_len = self.data_process(filepath=train_file_path, is_training=True)  # 得到处理好的所有样本
         _, val_data = train_test_split(train_data, test_size=0.3, random_state=2021)
@@ -672,5 +699,6 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                                 shuffle=self.is_sample_shuffle, collate_fn=self.generate_batch)
         val_iter = DataLoader(val_data, batch_size=self.batch_size,  # 构造DataLoader
                               shuffle=False, collate_fn=self.generate_batch)
-        logging.info(f"## 成功返回训练集（{len(train_iter)}）条、开发集（{len(val_iter)}）条、测试集（{len(test_iter)}）条")
+        logging.info(f"## 成功返回训练集（{len(train_iter.dataset)}）个、开发集（{len(val_iter.dataset)}）个"
+                     f"、测试集（{len(test_iter.dataset)}）个.")
         return train_iter, test_iter, val_iter
