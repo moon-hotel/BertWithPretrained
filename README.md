@@ -4,6 +4,17 @@
 [BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding](https://arxiv.org/abs/1810.04805)
 
 更多关于Transformer内容的介绍可以参考文章[ This post is all you need（层层剥开Transformer）](https://mp.weixin.qq.com/s/uch_AGcSB8OSAeVu2sme8A) ，近4万余字、50张图、3个实战示例，带你一网打尽Transformer！
+
+ ## 模型详细解析
+- [x] [1. BERT原理与NSL和MLM](https://www.ylkz.life/deeplearning/p10631450/) <br>
+- [x] [2. 从零实现BERT网络模型](https://www.ylkz.life/deeplearning/p10602241/) 　　　[代码](model/BasicBert)
+- [x] [3. 基于BERT预训练模型的中文文本分类任务](https://www.ylkz.life/deeplearning/p10979382/) 　　　[代码](Tasks/TaskForSingleSentenceClassification.py)
+- [ ] [4. 基于BERT预训练模型的英文文本蕴含任务](https://www.ylkz.life) 　　　[代码](model/DownstreamTasks/BertForSentenceClassification.py)
+- [ ] [5. 基于BERT预训练模型的英文多选项任务](https://www.ylkz.life) 　　　[代码](model/DownstreamTasks/BertForMultipleChoice.py)
+- [ ] [6. 基于BERT预训练模型的英文问答任务](https://www.ylkz.life) 　　　[代码](model/DownstreamTasks/BertForQuestionAnswering.py)
+- [ ] [7. 基于NSL和MLM任务从头训练BERT任务](https://www.ylkz.life)
+
+
 ## 工程结构
 - `bert_base_chinese`目录中是BERT base中文预训练模型以及配置文件
 
@@ -116,13 +127,3 @@ python TaskForMultipleChoice.py
 [2021-11-11 21:30:52] - INFO: He is throwing darts at a wall. A woman, is standing next to him.    ## True
 [2021-11-11 21:30:52] - INFO: Accuracy on val 0.794
 ```
-
- ## 模型详细解析
-- [x] [1. BERT原理与NSL和MLM](https://www.ylkz.life/deeplearning/p10631450/) <br>
-- [x] [2. 从零实现BERT网络模型](https://www.ylkz.life/deeplearning/p10602241/) 　　　[代码](model/BasicBert)
-- [ ] [3. 基于BERT预训练模型的中文文本分类任务](https://www.ylkz.life) 　　　[代码](model/DownstreamTasks/BertForSentenceClassification.py)
-- [ ] [4. 基于BERT预训练模型的英文文本蕴含任务](https://www.ylkz.life) 　　　[代码](model/DownstreamTasks/BertForSentenceClassification.py)
-- [ ] [5. 基于BERT预训练模型的英文多选项任务](https://www.ylkz.life) 　　　[代码](model/DownstreamTasks/BertForMultipleChoice.py)
-- [ ] [6. 基于BERT预训练模型的英文问答任务](https://www.ylkz.life) 　　　[代码](model/DownstreamTasks/BertForQuestionAnswering.py)
-- [ ] [7. 基于NSL和MLM任务从头训练BERT任务](https://www.ylkz.life)
-
