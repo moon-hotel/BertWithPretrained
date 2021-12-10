@@ -1,5 +1,8 @@
+import logging
 from ..BasicBert.Bert import BertModel
+from ..BasicBert.Bert import get_activation
 import torch.nn as nn
+import torch
 
 
 class BertForNextSentencePrediction(nn.Module):
@@ -36,3 +39,88 @@ class BertForNextSentencePrediction(nn.Module):
             return loss
         else:
             return seq_relationship_score
+
+
+class BertForLMTransformHead(nn.Module):
+    """
+    用于BertForMaskedLM中的一次变换。 因为在单独的MLM任务中
+    和最后NSP与MLM的整体任务中均要用到，所以这里单独抽象为一个类便于复用
+
+    ref: https://github.com/google-research/bert/blob/master/run_pretraining.py
+        第248-262行
+    """
+
+    def __init__(self, config, bert_model_embedding_weights=None):
+        """
+        :param config:
+        :param bert_model_embedding_weights:
+        the output-weights are the same as the input embeddings, but there is
+        an output-only bias for each token. 即TokenEmbedding层中的词表矩阵
+        """
+        super(BertForLMTransformHead, self).__init__()
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        if isinstance(config.hidden_act, str):
+            self.transform_act_fn = get_activation(config.hidden_act)
+        else:
+            self.transform_act_fn = config.hidden_act
+        self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=1e-12)
+        self.decoder = nn.Linear(config.hidden_size, config.vocab_size)
+        if bert_model_embedding_weights is not None:
+            self.decoder.weight = nn.Parameter(bert_model_embedding_weights)
+        # [hidden_size, vocab_size]
+        self.decoder.bias = nn.Parameter(torch.zeros(config.vocab_size))
+
+    def forward(self, hidden_states):
+        """
+        :param hidden_states: [src_len, batch_size, hidden_size] Bert最后一层的输出
+        :return:
+        """
+        hidden_states = self.dense(hidden_states)  # [src_len, batch_size, hidden_size]
+        hidden_states = self.transform_act_fn(hidden_states)  # [src_len, batch_size, hidden_size]
+        hidden_states = self.LayerNorm(hidden_states)  # [src_len, batch_size, hidden_size]
+        hidden_states = self.decoder(hidden_states)
+        # hidden_states:  [src_len, batch_size, vocab_size]
+        return hidden_states
+
+
+class BertForMaskedLM(nn.Module):
+    """
+    仅为掩码语言预测模型
+    """
+
+    def __init__(self, config, bert_pretrained_model_dir=None):
+        super(BertForMaskedLM, self).__init__()
+        if bert_pretrained_model_dir is not None:
+            self.bert = BertModel.from_pretrained(config, bert_pretrained_model_dir)
+        else:
+            self.bert = BertModel(config)
+        weights = None
+        if config.use_embedding_weight:
+            weights = self.bert.bert_embeddings.word_embeddings.embedding.weight
+            logging.info(f"## 使用token embedding中的权重矩阵作为输出层的权重！{weights.shape}")
+        self.classifier = BertForLMTransformHead(config, weights)
+        self.config = config
+
+    def forward(self,
+                input_ids,  # [src_len, batch_size]
+                attention_mask=None,  # [batch_size, src_len] mask掉padding部分的内容
+                token_type_ids=None,  # [src_len, batch_size]
+                position_ids=None,
+                masked_lm_labels=None  # [src_len,batch_size]
+                ):
+        _, all_encoder_outputs = self.bert(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids)
+        sequence_output = all_encoder_outputs[-1]  # 取Bert最后一层的输出
+        # sequence_output: [src_len, batch_size, hidden_size]
+        prediction_scores = self.classifier(sequence_output)
+        # prediction_scores: [src_len, batch_size, vocab_size]
+        if masked_lm_labels is not None:
+            loss_fct = nn.CrossEntropyLoss(ignore_index=-1)
+            masked_lm_loss = loss_fct(prediction_scores.view(-1, self.config.vocab_size),
+                                      masked_lm_labels.reshape(-1))
+            return masked_lm_loss
+        else:
+            return prediction_scores  # [src_len, batch_size, vocab_size]
