@@ -2,3 +2,5 @@ from .BertForSentenceClassification import BertForSentenceClassification
 from .BertForMultipleChoice import BertForMultipleChoice
 from .BertForQuestionAnswering import BertForQuestionAnswering
 from .BertForNSPAndMLM import BertForNextSentencePrediction
+from .BertForNSPAndMLM import BertForMaskedLM
+from .BertForNSPAndMLM import BertForPretrainingModel
