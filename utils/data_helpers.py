@@ -6,6 +6,8 @@ import json
 import logging
 import os
 from sklearn.model_selection import train_test_split
+import collections
+import six
 
 
 class Vocab:
@@ -97,16 +99,16 @@ def cache(func):
         data_path = filepath.split('.')[0] + '_' + postfix + '.pt'
         if not os.path.exists(data_path):
             logging.info(f"缓存文件 {data_path} 不存在，重新处理并缓存！")
-            all_data, max_len = func(*args, **kwargs)
+            all_data, max_len, examples = func(*args, **kwargs)
             with open(data_path, 'wb') as f:
-                data = {'all_data': all_data, 'max_len': max_len}
+                data = {'all_data': all_data, 'max_len': max_len, 'examples': examples}
                 torch.save(data, f)
         else:
             logging.info(f"缓存文件 {data_path} 存在，直接载入缓存文件！")
             with open(data_path, 'rb') as f:
                 data = torch.load(f)
-                all_data, max_len = data['all_data'], data['max_len']
-        return all_data, max_len
+                all_data, max_len, examples = data['all_data'], data['max_len'], data['examples']
+        return all_data, max_len, examples
 
     return wrapper
 
@@ -350,11 +352,18 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
 
     """
 
-    def __init__(self, doc_stride=64, with_sliding=True, max_query_length=64, **kwargs):
+    def __init__(self, doc_stride=64,
+                 with_sliding=True,
+                 max_query_length=64,
+                 n_best_size=20,
+                 max_answer_length=30,
+                 **kwargs):
         super(LoadSQuADQuestionAnsweringDataset, self).__init__(**kwargs)
         self.doc_stride = doc_stride
         self.with_sliding = with_sliding
         self.max_query_length = max_query_length
+        self.n_best_size = n_best_size
+        self.max_answer_length = max_answer_length
 
     @staticmethod
     def get_format_text_and_word_offset(text):
@@ -491,6 +500,55 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                 return i, new_end
         return start_position, end_position
 
+    @staticmethod
+    def get_token_to_orig_map(input_tokens, origin_context, tokenizer):
+        """
+           本函数的作用是根据input_tokens和原始的上下文，返回得input_tokens中每个单词在原始单词中所对应的位置索引
+           :param input_tokens:  ['[CLS]', 'to', 'whom', 'did', 'the', 'virgin', '[SEP]', 'architectural', '##ly',
+                                   ',', 'the', 'school', 'has', 'a', 'catholic', 'character', '.', '[SEP']
+           :param origin_context: "Architecturally, the Architecturally, test, Architecturally,
+                                    the school has a Catholic character. Welcome moon hotel"
+           :param tokenizer:
+           :return: {7: 4, 8: 4, 9: 4, 10: 5, 11: 6, 12: 7, 13: 8, 14: 9, 15: 10, 16: 10}
+                   含义是input_tokens[7]为origin_context中的第4个单词 Architecturally,
+                        input_tokens[8]为origin_context中的第4个单词 Architecturally,
+                        ...
+                        input_tokens[10]为origin_context中的第5个单词 the
+           """
+        origin_context_tokens = origin_context.split()
+        token_id = []
+        str_origin_context = ""
+        for i in range(len(origin_context_tokens)):
+            tokens = tokenizer(origin_context_tokens[i])
+            str_token = "".join(tokens)
+            str_origin_context += "" + str_token
+            for _ in str_token:
+                token_id.append(i)
+
+        key_start = input_tokens.index('[SEP]') + 1
+        tokenized_tokens = input_tokens[key_start:-1]
+        str_tokenized_tokens = "".join(tokenized_tokens)
+        index = str_origin_context.index(str_tokenized_tokens)
+        value_start = token_id[index]
+        token_to_orig_map = {}
+        # 处理这样的边界情况： Building's gold   《==》   's', 'gold', 'dome'
+        token = tokenizer(origin_context_tokens[value_start])
+        for i in range(len(token), -1, -1):
+            s1 = "".join(token[-i:])
+            s2 = "".join(tokenized_tokens[:i])
+            if s1 == s2:
+                token = token[-i:]
+                break
+
+        while True:
+            for j in range(len(token)):
+                token_to_orig_map[key_start] = value_start
+                key_start += 1
+                if len(token_to_orig_map) == len(tokenized_tokens):
+                    return token_to_orig_map
+            value_start += 1
+            token = tokenizer(origin_context_tokens[value_start])
+
     @cache
     def data_process_without_sliding(self, filepath, is_training, postfix='no_sliding'):
         logging.info(f"## 不使用窗口滑动滑动，postfix={postfix}")
@@ -540,7 +598,7 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
             all_data.append([input_ids, seg, start_position, end_position, answer_text, example[0]])
         return all_data, max_len
 
-    # @cache
+    @cache
     def data_process_with_sliding(self, filepath, is_training, postfix='sliding'):
         """
 
@@ -548,13 +606,13 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
         :param is_training:
         :param postfix:
         :return: [[example_id, feature_id, input_ids, seg, start_position,
-                    end_position, answer_text, example[0]],[],[],[]...]
-                  分别对应：[原始样本Id,训练特征id,input_ids，seg，开始，结束，答案文本，问题id]
+                    end_position, answer_text, example[0]],input_tokens,token_to_orig_map [],[],[]...]
+                  分别对应：[原始样本Id,训练特征id,input_ids，seg，开始，结束，答案文本，问题id,input_tokens,token_to_orig_map]
         """
         logging.info(f"## 使用窗口滑动滑动，postfix={postfix}+{self.doc_stride}")
         examples = self.preprocessing(filepath, is_training)
         all_data = []
-        example_id, feature_id = 100000, 0
+        example_id, feature_id = 0, 1000000000
         # 由于采用了滑动窗口，所以一个example可能构造得到多个训练样本（即这里被称为feature）；
         # 因此，需要对其分别进行编号，并且这主要是用在预测后的结果后处理当中，训练时用不到
         # 当然，这里只使用feature_id即可，因为每个example其实对应的就是一个问题，所以问题ID和example_id本质上是一样的
@@ -610,14 +668,18 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                             logging.debug(f"## 原始答案：{answer_text} <===>处理后的答案："
                                           f"{' '.join(input_tokens[new_start_position:(new_end_position + 1)])}")
                         all_data.append([example_id, feature_id, input_ids, seg, new_start_position,
-                                         new_end_position, answer_text, example[0]])
+                                         new_end_position, answer_text, example[0], input_tokens])
                         logging.debug(f"## start pos:{new_start_position}")
                         logging.debug(f"## end pos:{new_end_position}")
                     else:
                         all_data.append([example_id, feature_id, input_ids, seg, start_position,
-                                         end_position, answer_text, example[0]])
+                                         end_position, answer_text, example[0], input_tokens])
                         logging.debug(f"## start pos:{start_position}")
                         logging.debug(f"## end pos:{end_position}")
+                    token_to_orig_map = self.get_token_to_orig_map(input_tokens, example[3], self.tokenizer)
+                    all_data[-1].append(token_to_orig_map)
+                    logging.debug(f"## example id: {example_id}")
+                    logging.debug(f"## feature id: {feature_id}")
                     logging.debug(f"## input_tokens: {input_tokens}")
                     logging.debug(f"## input_ids:{input_ids.tolist()}")
                     logging.debug(f"## segment ids:{seg.tolist()}")
@@ -636,16 +698,17 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                 if is_training:
                     start_position += (len(question_ids))
                     end_position += (len(question_ids))
+                token_to_orig_map = self.get_token_to_orig_map(input_tokens, example[3], self.tokenizer)
                 all_data.append([example_id, feature_id, input_ids, seg, start_position,
-                                 end_position, answer_text, example[0]])
+                                 end_position, answer_text, example[0], input_tokens, token_to_orig_map])
                 logging.debug(f"## input_tokens: {input_tokens}")
                 logging.debug(f"## input_ids:{input_ids.tolist()}")
                 logging.debug(f"## segment ids:{seg.tolist()}")
                 logging.debug("======================\n")
                 feature_id += 1
             example_id += 1
-        #  all_data[0]: [原始样本Id,训练特征id,input_ids，seg，开始，结束，答案文本，问题id]
-        return all_data, self.max_sen_len
+        #  all_data[0]: [原始样本Id,训练特征id,input_ids，seg，开始，结束，答案文本，问题id, input_tokens,ori_map]
+        return all_data, self.max_sen_len, examples
 
     def data_process(self, filepath, is_training=False):
         if self.with_sliding:
@@ -659,15 +722,17 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
 
     def generate_batch(self, data_batch):
         batch_input, batch_seg, batch_label, batch_qid = [], [], [], []
-        batch_example_id, batch_feature_id = [], []
+        batch_example_id, batch_feature_id, batch_map = [], [], []
         for item in data_batch:
-            # item: [原始样本Id,训练特征id,input_ids，seg，开始，结束，答案文本，问题id]
-            batch_example_id.append(item[0])
-            batch_feature_id.append(item[1])
-            batch_input.append(item[2])
-            batch_seg.append(item[3])
-            batch_label.append([item[4], item[5]])
-            batch_qid.append(item[7])
+            # item: [原始样本Id,训练特征id,input_ids，seg，开始，结束，答案文本，问题id,input_tokens,ori_map]
+            batch_example_id.append(item[0])  # 原始样本Id
+            batch_feature_id.append(item[1])  # 训练特征id
+            batch_input.append(item[2])  # input_ids
+            batch_seg.append(item[3])  # seg
+            batch_label.append([item[4], item[5]])  # 开始, 结束
+            batch_qid.append(item[7])  # 问题id
+            batch_map.append(item[9])  # ori_map
+
         batch_input = pad_sequence(batch_input,  # [batch_size,max_len]
                                    padding_value=self.PAD_IDX,
                                    batch_first=False,
@@ -677,21 +742,21 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                                  batch_first=False,
                                  max_len=self.max_sen_len)  # [max_len, batch_size]
         batch_label = torch.tensor(batch_label, dtype=torch.long)
-        # [max_len, batch_size] , [max_len, batch_size] , [batch_size,2], [batch_size,], [batch_size,]
-        return batch_input, batch_seg, batch_label, batch_qid, batch_example_id, batch_feature_id
+        # [max_len,batch_size] , [max_len, batch_size] , [batch_size,2], [batch_size,], [batch_size,]
+        return batch_input, batch_seg, batch_label, batch_qid, batch_example_id, batch_feature_id, batch_map
 
     def load_train_val_test_data(self, train_file_path=None,
                                  val_file_path=None,
                                  test_file_path=None,
                                  only_test=True):
-        test_data, _ = self.data_process(filepath=test_file_path, is_training=False)
+        test_data, _, examples = self.data_process(filepath=test_file_path, is_training=False)
         test_iter = DataLoader(test_data, batch_size=self.batch_size,
                                shuffle=False,
                                collate_fn=self.generate_batch)
         if only_test:
             logging.info(f"## 成功返回测试集，一共包含样本{len(test_iter.dataset)}个")
-            return test_iter
-        train_data, max_sen_len = self.data_process(filepath=train_file_path, is_training=True)  # 得到处理好的所有样本
+            return test_iter, examples
+        train_data, max_sen_len, _ = self.data_process(filepath=train_file_path, is_training=True)  # 得到处理好的所有样本
         _, val_data = train_test_split(train_data, test_size=0.3, random_state=2021)
         if self.max_sen_len == 'same':
             self.max_sen_len = max_sen_len
@@ -702,3 +767,181 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
         logging.info(f"## 成功返回训练集（{len(train_iter.dataset)}）个、开发集（{len(val_iter.dataset)}）个"
                      f"、测试集（{len(test_iter.dataset)}）个.")
         return train_iter, test_iter, val_iter
+
+    @staticmethod
+    def get_best_indexes(logits, n_best_size):
+        """Get the n-best logits from a list."""
+        # logits = [0.37203778 0.48594432 0.81051651 0.07998148 0.93529721 0.0476721
+        #  0.15275263 0.98202781 0.07813079 0.85410559]
+        # n_best_size = 4
+        # return [7, 4, 9, 2]
+        index_and_score = sorted(enumerate(logits), key=lambda x: x[1], reverse=True)
+
+        best_indexes = []
+        for i in range(len(index_and_score)):
+            if i >= n_best_size:
+                break
+            best_indexes.append(index_and_score[i][0])
+        return best_indexes
+
+    def get_final_text(self, pred_text, orig_text, do_lower_case):
+        """Project the tokenized prediction back to the original text."""
+
+        # When we created the data, we kept track of the alignment between original
+        # (whitespace tokenized) tokens and our WordPiece tokenized tokens. So
+        # now `orig_text` contains the span of our original text corresponding to the
+        # span that we predicted.
+        #
+        # However, `orig_text` may contain extra characters that we don't want in
+        # our prediction.
+        #
+        # For example, let's say:
+        #   pred_text = steve smith
+        #   orig_text = Steve Smith's
+        #
+        # We don't want to return `orig_text` because it contains the extra "'s".
+        #
+        # We don't want to return `pred_text` because it's already been normalized
+        # (the SQuAD eval script also does punctuation stripping/lower casing but
+        # our tokenizer does additional normalization like stripping accent
+        # characters).
+        #
+        # What we really want to return is "Steve Smith".
+        #
+        # Therefore, we have to apply a semi-complicated alignment heruistic between
+        # `pred_text` and `orig_text` to get a character-to-charcter alignment. This
+        # can fail in certain cases in which case we just return `orig_text`.
+
+        def _strip_spaces(text):
+            ns_chars = []
+            ns_to_s_map = collections.OrderedDict()
+            for (i, c) in enumerate(text):
+                if c == " ":
+                    continue
+                ns_to_s_map[len(ns_chars)] = i
+                ns_chars.append(c)
+            ns_text = "".join(ns_chars)
+            return (ns_text, ns_to_s_map)
+
+        # We first tokenize `orig_text`, strip whitespace from the result
+        # and `pred_text`, and check if they are the same length. If they are
+        # NOT the same length, the heuristic has failed. If they are the same
+        # length, we assume the characters are one-to-one aligned.
+
+        tok_text = " ".join(self.tokenizer(orig_text))
+
+        start_position = tok_text.find(pred_text)
+        if start_position == -1:
+            return orig_text
+        end_position = start_position + len(pred_text) - 1
+
+        (orig_ns_text, orig_ns_to_s_map) = _strip_spaces(orig_text)
+        (tok_ns_text, tok_ns_to_s_map) = _strip_spaces(tok_text)
+
+        if len(orig_ns_text) != len(tok_ns_text):
+            return orig_text
+
+        # We then project the characters in `pred_text` back to `orig_text` using
+        # the character-to-character alignment.
+        tok_s_to_ns_map = {}
+        for (i, tok_index) in six.iteritems(tok_ns_to_s_map):
+            tok_s_to_ns_map[tok_index] = i
+
+        orig_start_position = None
+        if start_position in tok_s_to_ns_map:
+            ns_start_position = tok_s_to_ns_map[start_position]
+            if ns_start_position in orig_ns_to_s_map:
+                orig_start_position = orig_ns_to_s_map[ns_start_position]
+
+        if orig_start_position is None:
+            return orig_text
+
+        orig_end_position = None
+        if end_position in tok_s_to_ns_map:
+            ns_end_position = tok_s_to_ns_map[end_position]
+            if ns_end_position in orig_ns_to_s_map:
+                orig_end_position = orig_ns_to_s_map[ns_end_position]
+
+        if orig_end_position is None:
+            return orig_text
+
+        output_text = orig_text[orig_start_position:(orig_end_position + 1)]
+        return output_text
+
+    def write_prediction(self, test_iter, all_examples, logits_data, output_dir):
+        """
+        根据预测得到的logits将预测结果写入到本地文件中
+        :param test_iter:
+        :param all_examples:
+        :param logits_data:
+        :return:
+        """
+        qid_to_example_context = {}  # 根据qid取到其对应的context token
+        for example in all_examples:
+            context = example[3]
+            context_list = context.split()
+            qid_to_example_context[example[0]] = context_list
+        _PrelimPrediction = collections.namedtuple(  # pylint: disable=invalid-name
+            "PrelimPrediction",
+            ["text", "start_index", "end_index", "start_logit", "end_logit"])
+        prelim_predictions = collections.defaultdict(list)
+        for b_input, _, _, b_qid, _, _, b_map in tqdm(test_iter, ncols=80):
+            # 取一个问题对应所有特征样本的预测logits（因为有了滑动窗口，所以原始一个context可以构造得到过个训练样本）
+            all_logits = logits_data[b_qid[0]]
+            for logits in all_logits:
+                # 遍历每个logits的预测情况
+                start_indexes = self.get_best_indexes(logits[1], self.n_best_size)
+                # 得到开始位置几率最大的值对应的索引，例如可能是 [ 4,6,3,1]
+                end_indexes = self.get_best_indexes(logits[2], self.n_best_size)
+                # 得到结束位置几率最大的值对应的索引，例如可能是 [ 5,8,10,9]
+                for start_index in start_indexes:
+                    for end_index in end_indexes:  # 遍历所有存在的结果组合
+                        if start_index >= b_input.size(0):
+                            continue  # 去过索引大于token长度，忽略
+                        if end_index >= b_input.size(0):
+                            continue
+                        if start_index not in b_map[0]:
+                            continue  # 用来判断索引是否位于[SEP]之后的位置，因为答案只会在[SEP]以后出现
+                        if end_index not in b_map[0]:
+                            continue
+                        if end_index < start_index:
+                            continue
+                        length = end_index - start_index + 1
+                        if length > self.max_answer_length:
+                            continue
+                        token_ids = b_input.transpose(0, 1)[0]
+                        strs = [self.vocab.itos[s] for s in token_ids]
+                        tok_text = " ".join(strs[start_index:(end_index + 1)])
+                        tok_text = tok_text.replace(" ##", "").replace("##", "")
+                        tok_text = tok_text.strip()
+                        tok_text = " ".join(tok_text.split())
+
+                        orig_doc_start = b_map[0][start_index]
+                        orig_doc_end = b_map[0][end_index]
+                        orig_tokens = qid_to_example_context[b_qid[0]][orig_doc_start:(orig_doc_end + 1)]
+                        orig_text = " ".join(orig_tokens)
+                        final_text = self.get_final_text(tok_text, orig_text)
+
+                        prelim_predictions[b_qid[0]].append(_PrelimPrediction(
+                            text=final_text,
+                            start_index=int(start_index),
+                            end_index=int(end_index),
+                            start_logit=float(logits[1][start_index]),
+                            end_logit=float(logits[2][end_index])))
+                        # 此处为将每个qid对应的所有预测结果放到一起，因为一个qid对应的context应该滑动窗口
+                        # 会有构造得到多个训练样本，而每个训练样本都会对应得到一个预测的logits
+                        # 并且这里取了n_best个logits，所以组合后一个问题就会得到过个预测的答案
+
+        for k, v in prelim_predictions.items():
+            # 对每个qid对应的所有预测答案按照start_logit+end_logit的大小进行排序
+            prelim_predictions[k] = sorted(prelim_predictions[k],
+                                           key=lambda x: (x.start_logit + x.end_logits),
+                                           reverse=True)
+        best_results, all_n_best_results = {}, {}
+        for k, v in prelim_predictions.items():
+            best_results[k] = v[0].text  # 取最好的第一个结果
+            all_n_best_results = v  # 保存所有预测结果
+        with open(os.path.join(output_dir, f"best_result.json"), 'w') as f:
+            f.write(json.dumps(best_results, indent=4) + '\n')
+        with open(os.path.join(output_dir, f"best_n_result.json"), 'w') as f:
+            f.write(json.dumps(all_n_best_results, indent=4) + '\n')
