@@ -30,13 +30,14 @@ if __name__ == '__main__':
                                  train_file_path=model_config.train_file_path,
                                  only_test=False)
 
-    for b_input, b_seg, b_label, b_qid, b_example_id, b_feature_id in train_iter:
+    for b_input, b_seg, b_label, b_qid, b_example_id, b_feature_id, b_map in train_iter:
         print("=====================>")
         print(f"intput_ids shape: {b_input.shape}")  # [max_len, batch_size]
         # print(b_input.transpose(0, 1).tolist())
         print(f"token_type_ids shape: {b_seg.shape}")  # [max_len, batch_size]
         print(b_seg.transpose(0, 1).tolist())
         print(b_label)  # [batch_size,2]
+        print(b_map)  # [batch_size]
 
         for i in range(b_input.size(-1)):
             sample = b_input.transpose(0, 1)[i]
