@@ -83,19 +83,17 @@ def pad_sequence(sequences, batch_first=False, max_len=None, padding_value=0):
 
 def cache(func):
     """
-    本修饰器的作用是将data_process()方法处理后的结果进行缓存，下次使用时可直接载入！
+    本修饰器的作用是将SQuAD数据集中data_process()方法处理后的结果进行缓存，下次使用时可直接载入！
     :param func:
     :return:
     """
 
     def wrapper(*args, **kwargs):
         filepath = kwargs['filepath']
-        postfix = ""
-        if "postfix" in kwargs:
-            doc_stride = str(args[0].doc_stride)
-            max_sen_len = str(args[0].max_sen_len)
-            max_query_length = str(args[0].max_query_length)
-            postfix = kwargs['postfix'] + '_' + doc_stride + '_' + max_sen_len + '_' + max_query_length
+        doc_stride = str(args[0].doc_stride)
+        max_sen_len = str(args[0].max_sen_len)
+        max_query_length = str(args[0].max_query_length)
+        postfix = doc_stride + '_' + max_sen_len + '_' + max_query_length
         data_path = filepath.split('.')[0] + '_' + postfix + '.pt'
         if not os.path.exists(data_path):
             logging.info(f"缓存文件 {data_path} 不存在，重新处理并缓存！")
@@ -345,10 +343,11 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
         doc_stride: When splitting up a long document into chunks, how much stride to
                     take between chunks.
                     当上下文过长时，按滑动窗口进行移动，doc_stride表示每次移动的距离
-        with_sliding: 当其为 False 时，参数doc_stride失效，即不进行窗口滑动
         max_query_length: The maximum number of tokens for the question. Questions longer than
                     this will be truncated to this length.
                     限定问题的最大长度，过长时截断
+        n_best_size: 对预测出的答案近后处理时，选取的候选答案数量
+        max_answer_length: 在对候选进行筛选时，对答案最大长度的限制
 
     """
 
@@ -550,55 +549,6 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
             token = tokenizer(origin_context_tokens[value_start])
 
     @cache
-    def data_process_without_sliding(self, filepath, is_training, postfix='no_sliding'):
-        logging.info(f"## 不使用窗口滑动滑动，postfix={postfix}")
-        examples = self.preprocessing(filepath, is_training)
-        max_len = 0
-        all_data = []
-        for example in tqdm(examples, ncols=80, desc="正在遍历每个样本"):
-            question_tokens = self.tokenizer(example[1])
-            if len(question_tokens) > self.max_query_length:
-                question_tokens = question_tokens[:self.max_query_length]
-            question_ids = [self.vocab[token] for token in question_tokens]
-            question_ids = [self.CLS_IDX] + question_ids + [self.SEP_IDX]
-            context_tokens = self.tokenizer(example[3])
-            context_ids = [self.vocab[token] for token in context_tokens]
-            logging.debug(f"## 正在预处理数据 {__name__} is_training = {is_training}")
-            logging.debug(f"question id: {example[0]}")
-            logging.debug(f"## question text:{example[1]}")
-            input_ids = question_ids + context_ids
-            if len(input_ids) > self.max_position_embeddings - 1:
-                input_ids = input_ids[:self.max_position_embeddings - 1]
-                # BERT预训练模型只取前max_position_embeddings个字符
-            input_ids = torch.tensor(input_ids + [self.SEP_IDX])
-            input_tokens = ['[CLS]'] + question_tokens + ['[SEP]'] + context_tokens + ['[SEP]']
-            logging.debug(f"## sample ids(question + context): {input_ids.tolist()}")
-            seg = [0] * len(question_ids) + [1] * (len(input_ids) - len(question_ids))
-            seg = torch.tensor((seg))
-            max_len = max(max_len, input_ids.size(0))
-            start_position, end_position, answer_text = -1, -1, None
-            if is_training:
-                start_position, end_position = example[4], example[5]
-                answer_text = example[2]
-                answer_tokens = self.tokenizer(answer_text)
-                start_position, end_position = self.improve_answer_span(context_tokens,
-                                                                        answer_tokens,
-                                                                        start_position,
-                                                                        end_position)
-                start_position += (len(question_ids))
-                end_position += (len(question_ids))
-                logging.debug(f"原始答案：{answer_text} <===>处理后的答案："
-                              f"{' '.join(input_tokens[start_position:(end_position + 1)])}")
-            logging.debug(f"## input_tokens: {input_tokens}")
-            logging.debug(f"## input_ids:{input_ids.tolist()}")
-            logging.debug(f"## segment ids:{seg.tolist()}")
-            logging.debug(f"## start pos:{start_position}")
-            logging.debug(f"## end pos:{end_position}")
-            logging.debug("======================\n")
-            all_data.append([input_ids, seg, start_position, end_position, answer_text, example[0]])
-        return all_data, max_len
-
-    @cache
     def data_process_with_sliding(self, filepath, is_training, postfix='sliding'):
         """
 
@@ -711,14 +661,8 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
         return all_data, self.max_sen_len, examples
 
     def data_process(self, filepath, is_training=False):
-        if self.with_sliding:
-            return self.data_process_with_sliding(filepath=filepath,
-                                                  is_training=is_training,
-                                                  postfix='sliding')
-        else:
-            return self.data_process_without_sliding(filepath=filepath,
-                                                     is_training=is_training,
-                                                     postfix='no_sliding')
+        return self.data_process_with_sliding(filepath=filepath,
+                                              is_training=is_training)
 
     def generate_batch(self, data_batch):
         batch_input, batch_seg, batch_label, batch_qid = [], [], [], []
@@ -764,8 +708,8 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                                 shuffle=self.is_sample_shuffle, collate_fn=self.generate_batch)
         val_iter = DataLoader(val_data, batch_size=self.batch_size,  # 构造DataLoader
                               shuffle=False, collate_fn=self.generate_batch)
-        logging.info(f"## 成功返回训练集（{len(train_iter.dataset)}）个、开发集（{len(val_iter.dataset)}）个"
-                     f"、测试集（{len(test_iter.dataset)}）个.")
+        logging.info(f"## 成功返回训练集样本（{len(train_iter.dataset)}）个、开发集样本（{len(val_iter.dataset)}）个"
+                     f"测试集样本（{len(test_iter.dataset)}）个.")
         return train_iter, test_iter, val_iter
 
     @staticmethod
@@ -784,9 +728,10 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
             best_indexes.append(index_and_score[i][0])
         return best_indexes
 
-    def get_final_text(self, pred_text, orig_text, do_lower_case):
+    def get_final_text(self, pred_text, orig_text):
         """Project the tokenized prediction back to the original text."""
 
+        # ref: https://github.com/google-research/bert/blob/master/run_squad.py
         # When we created the data, we kept track of the alignment between original
         # (whitespace tokenized) tokens and our WordPiece tokenized tokens. So
         # now `orig_text` contains the span of our original text corresponding to the
@@ -885,7 +830,7 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
             "PrelimPrediction",
             ["text", "start_index", "end_index", "start_logit", "end_logit"])
         prelim_predictions = collections.defaultdict(list)
-        for b_input, _, _, b_qid, _, _, b_map in tqdm(test_iter, ncols=80):
+        for b_input, _, _, b_qid, _, _, b_map in tqdm(test_iter, ncols=80, desc="正在遍历候选答案"):
             # 取一个问题对应所有特征样本的预测logits（因为有了滑动窗口，所以原始一个context可以构造得到过个训练样本）
             all_logits = logits_data[b_qid[0]]
             for logits in all_logits:
@@ -935,12 +880,12 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
         for k, v in prelim_predictions.items():
             # 对每个qid对应的所有预测答案按照start_logit+end_logit的大小进行排序
             prelim_predictions[k] = sorted(prelim_predictions[k],
-                                           key=lambda x: (x.start_logit + x.end_logits),
+                                           key=lambda x: (x.start_logit + x.end_logit),
                                            reverse=True)
         best_results, all_n_best_results = {}, {}
         for k, v in prelim_predictions.items():
             best_results[k] = v[0].text  # 取最好的第一个结果
-            all_n_best_results = v  # 保存所有预测结果
+            all_n_best_results[k] = v  # 保存所有预测结果
         with open(os.path.join(output_dir, f"best_result.json"), 'w') as f:
             f.write(json.dumps(best_results, indent=4) + '\n')
         with open(os.path.join(output_dir, f"best_n_result.json"), 'w') as f:
