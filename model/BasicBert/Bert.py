@@ -245,6 +245,19 @@ def format_paras_for_torch(loaded_paras_names, loaded_paras):
     return torch_paras
 
 
+def replace_512_position(init_embedding, loaded_embedding, config):
+    """
+    本函数的作用是当max_positional_embedding > 512时，用预训练模型中的512个向量来
+    替换随机初始化的positional embedding中的前512个向量
+    :param init_embedding:  初始化的positional embedding矩阵，大于512行
+    :param loaded_embedding: 预训练模型中的positional embedding矩阵，等于512行
+    :return: 前512行被替换后的初始化的positional embedding矩阵
+    """
+    logging.info(f"模型参数max_positional_embedding > 512，采用替换处理！")
+    init_embedding[:512, :] = loaded_embedding[:512, :]
+    return init_embedding
+
+
 class BertModel(nn.Module):
     """
 
@@ -308,13 +321,29 @@ class BertModel(nn.Module):
             logging.info(f"## 注意，正在使用torch框架中的MultiHeadAttention实现")
             torch_paras = format_paras_for_torch(loaded_paras_names, loaded_paras)
             for i in range(len(model_paras_names)):
-                state_dict[model_paras_names[i]] = torch_paras[i]
-                logging.info(f"## 成功赋值参数:{model_paras_names[i]},形状为: {torch_paras[i].size()}")
+                if "position_embeddings" in model_paras_names[i]:
+                    # 这部分代码用来消除预训练模型只能输入小于512个字符的限制
+                    if config.max_position_embeddings > 512:
+                        new_embedding = replace_512_position(state_dict[model_paras_names[i]],
+                                                             loaded_paras[loaded_paras_names[i]],
+                                                             config)
+                        state_dict[model_paras_names[i]] = new_embedding
+                else:
+                    state_dict[model_paras_names[i]] = torch_paras[i]
+                logging.debug(f"## 成功赋值参数:{model_paras_names[i]},形状为: {torch_paras[i].size()}")
         else:
             logging.info(f"## 注意，正在使用本地MyTransformer中的MyMultiHeadAttention实现")
             for i in range(len(loaded_paras_names)):
-                state_dict[model_paras_names[i]] = loaded_paras[loaded_paras_names[i]]
-                logging.info(f"## 成功将参数:{loaded_paras_names[i]}赋值给{model_paras_names[i]},"
-                             f"参数形状为:{state_dict[model_paras_names[i]].size()}")
+                if "position_embeddings" in model_paras_names[i]:
+                    # 这部分代码用来消除预训练模型只能输入小于512个字符的限制
+                    if config.max_position_embeddings > 512:
+                        new_embedding = replace_512_position(state_dict[model_paras_names[i]],
+                                                             loaded_paras[loaded_paras_names[i]],
+                                                             config)
+                        state_dict[model_paras_names[i]] = new_embedding
+                else:
+                    state_dict[model_paras_names[i]] = loaded_paras[loaded_paras_names[i]]
+                logging.debug(f"## 成功将参数:{loaded_paras_names[i]}赋值给{model_paras_names[i]},"
+                              f"参数形状为:{state_dict[model_paras_names[i]].size()}")
         model.load_state_dict(state_dict)
         return model

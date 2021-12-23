@@ -14,7 +14,8 @@ if __name__ == '__main__':
     logger_init()
     json_file = '../bert_base_chinese/config.json'
     config = BertConfig.from_json_file(json_file)
-    config.__dict__['use_torch_multi_head'] = True # 表示使用 torch框架中的MultiHeadAttention 注意力实现方法
+    config.__dict__['use_torch_multi_head'] = True  # 表示使用 torch框架中的MultiHeadAttention 注意力实现方法
+    config.max_position_embeddings = 518 # 测试大于512时的情况
     src = torch.tensor([[1, 3, 5, 7, 9, 2, 3], [2, 4, 6, 8, 10, 0, 0]], dtype=torch.long)
     src = src.transpose(0, 1)  # [src_len, batch_size]
     print(f"input shape [src_len,batch_size]: ", src.shape)
