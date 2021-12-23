@@ -549,17 +549,16 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
             token = tokenizer(origin_context_tokens[value_start])
 
     @cache
-    def data_process_with_sliding(self, filepath, is_training, postfix='sliding'):
+    def data_process_with_sliding(self, filepath, is_training):
         """
 
         :param filepath:
         :param is_training:
-        :param postfix:
         :return: [[example_id, feature_id, input_ids, seg, start_position,
                     end_position, answer_text, example[0]],input_tokens,token_to_orig_map [],[],[]...]
                   分别对应：[原始样本Id,训练特征id,input_ids，seg，开始，结束，答案文本，问题id,input_tokens,token_to_orig_map]
         """
-        logging.info(f"## 使用窗口滑动滑动，postfix={postfix}+{self.doc_stride}")
+        logging.info(f"## 使用窗口滑动滑动，doc_stride = {self.doc_stride}")
         examples = self.preprocessing(filepath, is_training)
         all_data = []
         example_id, feature_id = 0, 1000000000
