@@ -8,10 +8,11 @@ from utils.create_pretraining_data import LoadBertPretrainingDataset
 class ModelConfig:
     def __init__(self):
         self.project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        self.dataset_dir = os.path.join(self.project_dir, 'dataset', 'WikiText', 'wikitext-2')
+        self.dataset_dir = os.path.join(self.project_dir, 'data', 'WikiText')
         self.pretrained_model_dir = os.path.join(self.project_dir, "bert_base_uncased_english")
         self.vocab_path = os.path.join(self.pretrained_model_dir, 'vocab.txt')
-        self.train_file_path = os.path.join(self.dataset_dir, 'test.tokens')
+        self.train_file_path = os.path.join(self.dataset_dir, 'train.tokens')
+        self.val_file_path = os.path.join(self.dataset_dir, 'val.tokens')
         self.test_file_path = os.path.join(self.dataset_dir, 'test.tokens')
         self.model_save_dir = os.path.join(self.project_dir, 'cache')
         self.logs_save_dir = os.path.join(self.project_dir, 'logs')
@@ -54,8 +55,10 @@ if __name__ == '__main__':
                                              masked_token_rate=model_config.masked_token_rate,
                                              masked_token_unchanged_rate=model_config.masked_token_unchanged_rate)
 
-    test_iter = data_loader.load_train_val_test_data(test_file_path=model_config.test_file_path,
-                                                     only_test=True)
+    train_iter, test_iter, val_iter = data_loader.load_train_val_test_data(
+        test_file_path=model_config.test_file_path,
+        train_file_path=model_config.train_file_path,
+        val_file_path=model_config.val_file_path)
     for b_token_ids, b_segs, b_mask, b_mlm_label, b_nsp_label in test_iter:
         print(b_token_ids.shape)  # [src_len,batch_size]
         print(b_segs.shape)  # [batch_size,src_len]
