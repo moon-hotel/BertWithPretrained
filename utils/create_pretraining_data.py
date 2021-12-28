@@ -5,6 +5,7 @@ from .data_helpers import build_vocab
 from .data_helpers import pad_sequence
 import torch
 from torch.utils.data import DataLoader
+import os
 
 
 def read_wiki2(filepath=None):
@@ -31,6 +32,31 @@ def read_wiki2(filepath=None):
 
 def read_custom(filepath=None):
     pass
+
+
+def cache(func):
+    """
+    本修饰器的作用是将SQuAD数据集中data_process()方法处理后的结果进行缓存，下次使用时可直接载入！
+    :param func:
+    :return:
+    """
+
+    def wrapper(*args, **kwargs):
+        filepath = kwargs['filepath']
+        postfix = kwargs['postfix']
+        data_path = filepath.split('.')[0] + '_' + postfix + '.pt'
+        if not os.path.exists(data_path):
+            logging.info(f"缓存文件 {data_path} 不存在，重新处理并缓存！")
+            data = func(*args, **kwargs)
+            with open(data_path, 'wb') as f:
+                torch.save(data, f)
+        else:
+            logging.info(f"缓存文件 {data_path} 存在，直接载入缓存文件！")
+            with open(data_path, 'rb') as f:
+                data = torch.load(f)
+        return data
+
+    return wrapper
 
 
 class LoadBertPretrainingDataset(object):
@@ -68,6 +94,7 @@ class LoadBertPretrainingDataset(object):
         self.masked_rate = masked_rate
         self.masked_token_rate = masked_token_rate
         self.masked_token_unchanged_rate = masked_token_unchanged_rate
+        self.random_state = random_state
         random.seed(random_state)
 
     def get_format_data(self, filepath):
@@ -160,13 +187,14 @@ class LoadBertPretrainingDataset(object):
             token_ids, candidate_pred_positions, num_mlm_preds)
         return mlm_input_tokens_id, mlm_label
 
-    def data_process(self, file_path):
+    @cache
+    def data_process(self, filepath, postfix='cache'):
         """
         本函数的作用是是根据格式化后的数据制作NSP和MLM两个任务对应的处理完成的数据
-        :param file_path:
+        :param filepath:
         :return:
         """
-        paragraphs = self.get_format_data(file_path)
+        paragraphs = self.get_format_data(filepath)
         # 返回的是一个二维列表，每个列表可以看做是一个段落（其中每个元素为一句话）
         data = []
         max_len = 0
@@ -199,7 +227,8 @@ class LoadBertPretrainingDataset(object):
                 logging.debug(f" ## Mask之后label ids:{mlm_label.tolist()}")
                 logging.debug(f" ## 当前样本构造结束================== \n\n")
                 data.append([token_ids, segs, nsp_lable, mlm_label])
-        return data, max_len
+        all_data = {'data': data, 'max_len': max_len}
+        return all_data
 
     def generate_batch(self, data_batch):
         b_token_ids, b_segs, b_nsp_label, b_mlm_label = [], [], [], []
@@ -239,19 +268,23 @@ class LoadBertPretrainingDataset(object):
                                  val_file_path=None,
                                  test_file_path=None,
                                  only_test=False):
-        test_data, _ = self.data_process(test_file_path)
+        postfix = f"ml{self.max_sen_len}_rs{self.random_state}_mr{str(self.masked_rate)[2:]}" \
+                  f"_mtr{str(self.masked_token_rate)[2:]}_mtur{str(self.masked_token_unchanged_rate)[2:]}"
+        test_data = self.data_process(filepath=test_file_path,
+                                      postfix=postfix)['data']
         test_iter = DataLoader(test_data, batch_size=self.batch_size,
                                shuffle=False, collate_fn=self.generate_batch)
         if only_test:
             logging.info(f"## 成功返回测试集，一共包含样本{len(test_iter.dataset)}个")
             return test_iter
-        train_data, max_len = self.data_process(train_file_path)
+        data = self.data_process(filepath=train_file_path, postfix=postfix)
+        train_data, max_len = data['data'], data['max_len']
         if self.max_sen_len == 'same':
             self.max_sen_len = max_len
         train_iter = DataLoader(train_data, batch_size=self.batch_size,
                                 shuffle=self.is_sample_shuffle,
                                 collate_fn=self.generate_batch)
-        val_data, _ = self.data_process(val_file_path)
+        val_data = self.data_process(filepath=val_file_path, postfix=postfix)['data']
         val_iter = DataLoader(val_data, batch_size=self.batch_size,
                               shuffle=False,
                               collate_fn=self.generate_batch)
