@@ -1,3 +1,6 @@
+import sys
+
+sys.path.append('../')
 from utils.log_helper import logger_init
 import logging
 from transformers import BertTokenizer

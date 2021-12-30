@@ -126,15 +126,15 @@ class LoadBertPretrainingDataset(object):
             is_next = True
         else:
             # 这里random.choice的作用是从一个list中随机选出一个元素
-            # ①先重所有段落中随机出一个段落；
-            # ②再重随机出的一个段落中随机出一句话；
+            # ①先从所有段落中随机出一个段落；
+            # ②再从随机出的一个段落中随机出一句话；
             next_sentence = random.choice(random.choice(paragraphs))
             is_next = False
         return sentence, next_sentence, is_next
 
     def replace_masked_tokens(self, token_ids, candidate_pred_positions, num_mlm_preds):
         """
-        本函数的作用是根据给定的token_ids、候选mask位置以及需要mask的数量来返回被mask后的token_ids
+        本函数的作用是根据给定的token_ids、候选mask位置以及需要mask的数量来返回被mask后的token_ids以及标签信息
         :param token_ids:
         :param candidate_pred_positions:
         :param num_mlm_preds:
