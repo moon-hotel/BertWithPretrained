@@ -1,10 +1,10 @@
 import sys
 
 sys.path.append('../')
-from model.DownstreamTasks import BertForSentenceClassification
-from model.BasicBert.BertConfig import BertConfig
-from utils.data_helpers import LoadPairSentenceClassificationDataset
-from utils.log_helper import logger_init
+from model import BertForSentenceClassification
+from model import BertConfig
+from utils import LoadPairSentenceClassificationDataset
+from utils import logger_init
 from transformers import BertTokenizer
 import logging
 import torch

@@ -1,10 +1,10 @@
 import sys
 
 sys.path.append('../')
-from model.BasicBert.BertConfig import BertConfig
-from model.DownstreamTasks import BertForMultipleChoice
-from utils.data_helpers import LoadMultipleChoiceDataset
-from utils.log_helper import logger_init
+from model import BertConfig
+from model import BertForMultipleChoice
+from utils import LoadMultipleChoiceDataset
+from utils import logger_init
 from transformers import BertTokenizer
 import logging
 import torch
