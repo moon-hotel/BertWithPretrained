@@ -318,22 +318,9 @@ class BertModel(nn.Module):
         loaded_paras_names = list(loaded_paras.keys())[:-8]
         model_paras_names = list(state_dict.keys())[1:]
         if 'use_torch_multi_head' in config.__dict__ and config.use_torch_multi_head:
-            logging.info(f"## 注意，正在使用torch框架中的MultiHeadAttention实现")
             torch_paras = format_paras_for_torch(loaded_paras_names, loaded_paras)
             for i in range(len(model_paras_names)):
-                if "position_embeddings" in model_paras_names[i]:
-                    # 这部分代码用来消除预训练模型只能输入小于512个字符的限制
-                    if config.max_position_embeddings > 512:
-                        new_embedding = replace_512_position(state_dict[model_paras_names[i]],
-                                                             loaded_paras[loaded_paras_names[i]],
-                                                             config)
-                        state_dict[model_paras_names[i]] = new_embedding
-                else:
-                    state_dict[model_paras_names[i]] = torch_paras[i]
                 logging.debug(f"## 成功赋值参数:{model_paras_names[i]},形状为: {torch_paras[i].size()}")
-        else:
-            logging.info(f"## 注意，正在使用本地MyTransformer中的MyMultiHeadAttention实现")
-            for i in range(len(loaded_paras_names)):
                 if "position_embeddings" in model_paras_names[i]:
                     # 这部分代码用来消除预训练模型只能输入小于512个字符的限制
                     if config.max_position_embeddings > 512:
@@ -341,9 +328,22 @@ class BertModel(nn.Module):
                                                              loaded_paras[loaded_paras_names[i]],
                                                              config)
                         state_dict[model_paras_names[i]] = new_embedding
-                else:
-                    state_dict[model_paras_names[i]] = loaded_paras[loaded_paras_names[i]]
+                        continue
+                state_dict[model_paras_names[i]] = torch_paras[i]
+            logging.info(f"## 注意，正在使用torch框架中的MultiHeadAttention实现")
+        else:
+            for i in range(len(loaded_paras_names)):
                 logging.debug(f"## 成功将参数:{loaded_paras_names[i]}赋值给{model_paras_names[i]},"
                               f"参数形状为:{state_dict[model_paras_names[i]].size()}")
+                if "position_embeddings" in model_paras_names[i]:
+                    # 这部分代码用来消除预训练模型只能输入小于512个字符的限制
+                    if config.max_position_embeddings > 512:
+                        new_embedding = replace_512_position(state_dict[model_paras_names[i]],
+                                                             loaded_paras[loaded_paras_names[i]],
+                                                             config)
+                        state_dict[model_paras_names[i]] = new_embedding
+                        continue
+                state_dict[model_paras_names[i]] = loaded_paras[loaded_paras_names[i]]
+            logging.info(f"## 注意，正在使用本地MyTransformer中的MyMultiHeadAttention实现")
         model.load_state_dict(state_dict)
         return model
