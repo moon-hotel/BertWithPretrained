@@ -36,7 +36,7 @@ def read_custom(filepath=None):
 
 def cache(func):
     """
-    本修饰器的作用是将SQuAD数据集中data_process()方法处理后的结果进行缓存，下次使用时可直接载入！
+    本修饰器的作用是将数据预处理后的结果进行缓存，下次使用时可直接载入！
     :param func:
     :return:
     """
