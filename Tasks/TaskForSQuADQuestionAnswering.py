@@ -7,6 +7,7 @@ from model.DownstreamTasks import BertForQuestionAnswering
 from utils.data_helpers import LoadSQuADQuestionAnsweringDataset
 from utils.log_helper import logger_init
 from transformers import BertTokenizer
+from transformers import get_scheduler
 import logging
 import torch
 import os
@@ -26,16 +27,16 @@ class ModelConfig:
         self.model_save_dir = os.path.join(self.project_dir, 'cache')
         self.logs_save_dir = os.path.join(self.project_dir, 'logs')
         self.model_save_path = os.path.join(self.model_save_dir, 'model.pt')
-        self.n_best_size = 20  # 对预测出的答案近后处理时，选取的候选答案数量
+        self.n_best_size = 10  # 对预测出的答案近后处理时，选取的候选答案数量
         self.max_answer_len = 30  # 在对候选进行筛选时，对答案最大长度的限制
         self.is_sample_shuffle = True  # 是否对训练集进行打乱
+        self.use_torch_multi_head = False  # 是否使用PyTorch中的multihead实现
         self.batch_size = 12
         self.max_sen_len = 384  # 最大句子长度，即 [cls] + question ids + [sep] +  context ids + [sep] 的长度
         self.max_query_len = 64  # 表示问题的最大长度，超过长度截取
-        self.learning_rate = 5e-5
+        self.learning_rate = 3.5e-5
         self.doc_stride = 128  # 滑动窗口一次滑动的长度
-        self.with_sliding = True
-        self.epochs = 3
+        self.epochs = 2
         self.model_val_per_epoch = 1
         logger_init(log_file_name='qa', log_level=logging.DEBUG,
                     log_dir=self.logs_save_dir)
@@ -72,18 +73,16 @@ def train(config):
                                                     max_position_embeddings=config.max_position_embeddings,
                                                     pad_index=config.pad_token_id,
                                                     is_sample_shuffle=config.is_sample_shuffle,
-                                                    doc_stride=config.doc_stride,
-                                                    with_sliding=config.with_sliding)
+                                                    doc_stride=config.doc_stride)
     train_iter, test_iter, val_iter = \
         data_loader.load_train_val_test_data(train_file_path=config.train_file_path,
                                              test_file_path=config.test_file_path,
                                              only_test=False)
-
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
-
-    lr_scheduler = CustomSchedule(warmup_steps=int(len(train_iter) * 0.5),
-                                  d_model=config.hidden_size,
-                                  optimizer=optimizer)
+    lr_scheduler = get_scheduler(name='linear',
+                                 optimizer=optimizer,
+                                 num_warmup_steps=int(len(train_iter) * 0),
+                                 num_training_steps=int(config.epochs * len(train_iter)))
     max_acc = 0
     for epoch in range(config.epochs):
         losses = 0
@@ -124,11 +123,10 @@ def train(config):
                               config.device,
                               data_loader.PAD_IDX,
                               inference=False)
-            logging.info(f" ### Accuracy on val: {round(acc, 4)}")
-
+            logging.info(f" ### Accuracy on val: {round(acc, 4)} max :{max_acc}")
             if acc > max_acc:
                 max_acc = acc
-                torch.save(model.state_dict(), config.model_save_path)
+            torch.save(model.state_dict(), config.model_save_path)
 
 
 def evaluate(data_iter, model, device, PAD_IDX, inference=False):
@@ -203,7 +201,8 @@ def inference(config):
                                                     doc_stride=config.doc_stride,
                                                     max_query_length=config.max_query_len,
                                                     max_position_embeddings=config.max_position_embeddings,
-                                                    pad_index=config.pad_token_id)
+                                                    pad_index=config.pad_token_id,
+                                                    n_best_size=config.n_best_size)
     test_iter, all_examples = data_loader.load_train_val_test_data(test_file_path=config.test_file_path,
                                                                    only_test=True)
     model = BertForQuestionAnswering(config,
@@ -219,7 +218,7 @@ def inference(config):
     _, all_result_logits = evaluate(test_iter, model, config.device,
                                     data_loader.PAD_IDX, inference=True)
     data_loader.write_prediction(test_iter, all_examples,
-                                 all_result_logits, model_config.dataset_dir)
+                                 all_result_logits, config.dataset_dir)
 
 
 if __name__ == '__main__':
