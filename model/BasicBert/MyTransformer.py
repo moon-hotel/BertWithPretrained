@@ -1,6 +1,5 @@
 from torch.nn.init import xavier_uniform_
 import torch.nn.functional as F
-from torch.nn import Parameter
 import torch.nn as nn
 import copy
 import torch
@@ -272,11 +271,6 @@ class MyMultiheadAttention(nn.Module):
 
         assert self.head_dim * num_heads == self.embed_dim, "embed_dim 除以 num_heads必须为整数"
         # 上面的限制条件就是论文中的  d_k = d_v = d_model/n_head 条件
-
-        # self.q_proj_weight = Parameter(torch.Tensor(embed_dim, embed_dim))  # embed_dim = kdim * num_heads
-        # # 这里第二个维度之所以是embed_dim，实际上这里是同时初始化了num_heads个W_q堆叠起来的, 也就是num_heads个头
-        # self.k_proj_weight = Parameter(torch.Tensor(embed_dim, embed_dim))  # W_k,  embed_dim = kdim * num_heads
-        # self.v_proj_weight = Parameter(torch.Tensor(embed_dim, embed_dim))  # W_v,  embed_dim = vdim * num_heads
 
         self.q_proj = nn.Linear(embed_dim, embed_dim, bias=bias)  # embed_dim = kdim * num_heads
         # 这里第二个维度之所以是embed_dim，实际上这里是同时初始化了num_heads个W_q堆叠起来的, 也就是num_heads个头
