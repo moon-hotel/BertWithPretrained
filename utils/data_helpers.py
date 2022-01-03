@@ -90,23 +90,18 @@ def cache(func):
 
     def wrapper(*args, **kwargs):
         filepath = kwargs['filepath']
-        doc_stride = str(args[0].doc_stride)
-        max_sen_len = str(args[0].max_sen_len)
-        max_query_length = str(args[0].max_query_length)
-        postfix = doc_stride + '_' + max_sen_len + '_' + max_query_length
+        postfix = kwargs['postfix']
         data_path = filepath.split('.')[0] + '_' + postfix + '.pt'
         if not os.path.exists(data_path):
             logging.info(f"缓存文件 {data_path} 不存在，重新处理并缓存！")
-            all_data, max_len, examples = func(*args, **kwargs)
+            data = func(*args, **kwargs)
             with open(data_path, 'wb') as f:
-                data = {'all_data': all_data, 'max_len': max_len, 'examples': examples}
                 torch.save(data, f)
         else:
             logging.info(f"缓存文件 {data_path} 存在，直接载入缓存文件！")
             with open(data_path, 'rb') as f:
                 data = torch.load(f)
-                all_data, max_len, examples = data['all_data'], data['max_len'], data['examples']
-        return all_data, max_len, examples
+        return data
 
     return wrapper
 
@@ -352,14 +347,12 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
     """
 
     def __init__(self, doc_stride=64,
-                 with_sliding=True,
                  max_query_length=64,
                  n_best_size=20,
                  max_answer_length=30,
                  **kwargs):
         super(LoadSQuADQuestionAnsweringDataset, self).__init__(**kwargs)
         self.doc_stride = doc_stride
-        self.with_sliding = with_sliding
         self.max_query_length = max_query_length
         self.n_best_size = n_best_size
         self.max_answer_length = max_answer_length
@@ -549,7 +542,7 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
             token = tokenizer(origin_context_tokens[value_start])
 
     @cache
-    def data_process_with_sliding(self, filepath, is_training):
+    def data_process(self, filepath, is_training=False, postfix='cache'):
         """
 
         :param filepath:
@@ -657,11 +650,8 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                 feature_id += 1
             example_id += 1
         #  all_data[0]: [原始样本Id,训练特征id,input_ids，seg，开始，结束，答案文本，问题id, input_tokens,ori_map]
-        return all_data, self.max_sen_len, examples
-
-    def data_process(self, filepath, is_training=False):
-        return self.data_process_with_sliding(filepath=filepath,
-                                              is_training=is_training)
+        data = {'all_data': all_data, 'max_len': self.max_sen_len, 'examples': examples}
+        return data
 
     def generate_batch(self, data_batch):
         batch_input, batch_seg, batch_label, batch_qid = [], [], [], []
@@ -692,14 +682,25 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                                  val_file_path=None,
                                  test_file_path=None,
                                  only_test=True):
-        test_data, _, examples = self.data_process(filepath=test_file_path, is_training=False)
+        doc_stride = str(self.doc_stride)
+        max_sen_len = str(self.max_sen_len)
+        max_query_length = str(self.max_query_length)
+        postfix = doc_stride + '_' + max_sen_len + '_' + max_query_length
+        data = self.data_process(filepath=test_file_path,
+                                 is_training=False,
+                                 postfix=postfix)
+        test_data, examples = data['all_data'], data['examples']
         test_iter = DataLoader(test_data, batch_size=self.batch_size,
                                shuffle=False,
                                collate_fn=self.generate_batch)
         if only_test:
             logging.info(f"## 成功返回测试集，一共包含样本{len(test_iter.dataset)}个")
             return test_iter, examples
-        train_data, max_sen_len, _ = self.data_process(filepath=train_file_path, is_training=True)  # 得到处理好的所有样本
+
+        data = self.data_process(filepath=train_file_path,
+                                 is_training=True,
+                                 postfix=postfix)  # 得到处理好的所有样本
+        train_data, max_sen_len = data['all_data'], data['max_len']
         _, val_data = train_test_split(train_data, test_size=0.3, random_state=2021)
         if self.max_sen_len == 'same':
             self.max_sen_len = max_sen_len
@@ -841,9 +842,9 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                 for start_index in start_indexes:
                     for end_index in end_indexes:  # 遍历所有存在的结果组合
                         if start_index >= b_input.size(0):
-                            continue  # 去过索引大于token长度，忽略
+                            continue  # 起始索引大于token长度，忽略
                         if end_index >= b_input.size(0):
-                            continue
+                            continue  # 结束索引大于token长度，忽略
                         if start_index not in b_map[0]:
                             continue  # 用来判断索引是否位于[SEP]之后的位置，因为答案只会在[SEP]以后出现
                         if end_index not in b_map[0]:
