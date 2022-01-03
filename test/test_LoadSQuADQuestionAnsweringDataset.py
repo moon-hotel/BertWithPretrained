@@ -16,7 +16,6 @@ if __name__ == '__main__':
                                                     pad_index=0,
                                                     is_sample_shuffle=False,
                                                     doc_stride=8,
-                                                    with_sliding=True,
                                                     max_query_length=5
                                                     )
 
