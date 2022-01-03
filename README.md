@@ -133,3 +133,31 @@ python TaskForMultipleChoice.py
 [2021-11-11 21:30:52] - INFO: He is throwing darts at a wall. A woman, is standing next to him.    ## True
 [2021-11-11 21:30:52] - INFO: Accuracy on val 0.794
 ```
+
+### 2.4 SQuAD问题回答任务
+
+```python
+python TaskForSQuADQuestionAnswering.py
+```
+运行结果：
+```python
+[2022-01-02 15:13:50] - INFO: Epoch:0, Batch[810/7387] Train loss: 0.998, Train acc: 0.708
+[2022-01-02 15:13:55] - INFO: Epoch:0, Batch[820/7387] Train loss: 1.130, Train acc: 0.708
+[2022-01-02 15:13:59] - INFO: Epoch:0, Batch[830/7387] Train loss: 1.960, Train acc: 0.375
+[2022-01-02 15:14:04] - INFO: Epoch:0, Batch[840/7387] Train loss: 1.933, Train acc: 0.542
+......
+[2022-01-02 15:15:27] - INFO:  ### Quesiotn: [CLS] when was the first university in switzerland founded..
+[2022-01-02 15:15:27] - INFO:    ## Predicted answer: 1460
+[2022-01-02 15:15:27] - INFO:    ## True answer: 1460
+[2022-01-02 15:15:27] - INFO:    ## True answer idx: (tensor(46, tensor(47))
+[2022-01-02 15:15:27] - INFO:  ### Quesiotn: [CLS] how many wards in plymouth elect two councillors?
+[2022-01-02 15:15:27] - INFO:    ## Predicted answer: 17 of which elect three .....
+[2022-01-02 15:15:27] - INFO:    ## True answer: three
+[2022-01-02 15:15:27] - INFO:    ## True answer idx: (tensor(25, tensor(25))
+```
+运行结束后，`data/SQuAD`目录中会生成一个名为`best_result.json`的预测文件，此时只需要切换到该目录下，并运行以下代码即可得到在`dev-v1.1.json`的测试结果：
+```python
+python evaluate-v1.1.py dev-v1.1.json best_result.json
+
+"exact_match" : 80.530, "f1": 87.945
+```
