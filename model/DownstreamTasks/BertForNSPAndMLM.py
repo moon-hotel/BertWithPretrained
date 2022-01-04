@@ -138,7 +138,7 @@ class BertForPretrainingModel(nn.Module):
         else:  # 如果没有指定预训练模型路径，则随机初始化整个网络权重
             self.bert = BertModel(config)
         weights = None
-        if config.use_embedding_weight:
+        if 'use_embedding_weight' in config.__dict__ and config.use_embedding_weight:
             weights = self.bert.bert_embeddings.word_embeddings.embedding.weight
             logging.info(f"## 使用token embedding中的权重矩阵作为输出层的权重！{weights.shape}")
         self.mlm_prediction = BertForLMTransformHead(config, weights)
@@ -158,18 +158,18 @@ class BertForPretrainingModel(nn.Module):
             position_ids=position_ids)
         sequence_output = all_encoder_outputs[-1]  # 取Bert最后一层的输出
         # sequence_output: [src_len, batch_size, hidden_size]
-        mlm_prediction_score = self.mlm_prediction(sequence_output)
-        # mlm_prediction_score: [src_len, batch_size, vocab_size]
-        nsp_pred_score = self.nsp_prediciton(pooled_output)
-        # nsp_pred_score： [batch_size, 2]
+        mlm_prediction_logits = self.mlm_prediction(sequence_output)
+        # mlm_prediction_logits: [src_len, batch_size, vocab_size]
+        nsp_pred_logits = self.nsp_prediction(pooled_output)
+        # nsp_pred_logits： [batch_size, 2]
         if masked_lm_labels is not None and next_sentence_labels is not None:
             loss_fct = nn.CrossEntropyLoss(ignore_index=-1)
-            mlm_loss = loss_fct(mlm_prediction_score.reshape(-1, self.config.vocab_size),
+            mlm_loss = loss_fct(mlm_prediction_logits.reshape(-1, self.config.vocab_size),
                                 masked_lm_labels.reshape(-1))
-            nsp_loss = loss_fct(nsp_pred_score.reshape(-1, 2),
+            nsp_loss = loss_fct(nsp_pred_logits.reshape(-1, 2),
                                 next_sentence_labels.reshape(-1))
             total_loss = mlm_loss + nsp_loss
-            return total_loss
+            return total_loss, mlm_prediction_logits, nsp_pred_logits
         else:
-            return mlm_prediction_score, nsp_pred_score
+            return mlm_prediction_logits, nsp_pred_logits
         # [src_len, batch_size, vocab_size], [batch_size, 2]
