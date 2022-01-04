@@ -64,7 +64,7 @@ if __name__ == '__main__':
         val_file_path=model_config.val_file_path)
     for b_token_ids, b_segs, b_mask, b_mlm_label, b_nsp_label in test_iter:
         print(b_token_ids.shape)  # [src_len,batch_size]
-        print(b_segs.shape)  # [batch_size,src_len]
+        print(b_segs.shape)  # [src_len,batch_size]
         print(b_mask.shape)  # [batch_size,src_len]
         print(b_mlm_label.shape)  # [src_len,batch_size]
         print(b_nsp_label.shape)  # [batch_size]

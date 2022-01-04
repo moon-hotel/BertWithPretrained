@@ -246,9 +246,9 @@ class LoadBertPretrainingDataset(object):
 
         b_segs = pad_sequence(b_segs,  # [batch_size,max_len]
                               padding_value=self.PAD_IDX,
-                              batch_first=True,
+                              batch_first=False,
                               max_len=self.max_sen_len)
-        # b_segs: [batch_size,src_len]
+        # b_segs: [src_len,batch_size]
 
         b_mlm_label = pad_sequence(b_mlm_label,  # [batch_size,max_len]
                                    padding_value=self.PAD_IDX,
