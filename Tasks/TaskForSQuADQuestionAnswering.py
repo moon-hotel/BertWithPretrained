@@ -12,7 +12,6 @@ import logging
 import torch
 import os
 import time
-import numpy as np
 
 
 class ModelConfig:
@@ -38,7 +37,7 @@ class ModelConfig:
         self.doc_stride = 128  # 滑动窗口一次滑动的长度
         self.epochs = 2
         self.model_val_per_epoch = 1
-        logger_init(log_file_name='qa', log_level=logging.DEBUG,
+        logger_init(log_file_name='qa', log_level=logging.INFO,
                     log_dir=self.logs_save_dir)
         if not os.path.exists(self.model_save_dir):
             os.makedirs(self.model_save_dir)
@@ -119,10 +118,10 @@ def train(config):
         logging.info(f"Epoch: {epoch}, Train loss: "
                      f"{train_loss:.3f}, Epoch time = {(end_time - start_time):.3f}s")
         if (epoch + 1) % config.model_val_per_epoch == 0:
-            acc, _ = evaluate(val_iter, model,
-                              config.device,
-                              data_loader.PAD_IDX,
-                              inference=False)
+            acc = evaluate(val_iter, model,
+                           config.device,
+                           data_loader.PAD_IDX,
+                           inference=False)
             logging.info(f" ### Accuracy on val: {round(acc, 4)} max :{max_acc}")
             if acc > max_acc:
                 max_acc = acc
@@ -133,7 +132,6 @@ def evaluate(data_iter, model, device, PAD_IDX, inference=False):
     model.eval()
     with torch.no_grad():
         acc_sum, n = 0.0, 0
-        y_start_pred, y_end_pred = [], []
         all_results = collections.defaultdict(list)
         for batch_input, batch_seg, batch_label, batch_qid, _, batch_feature_id, _ in data_iter:
             batch_input = batch_input.to(device)  # [src_len, batch_size]
@@ -148,8 +146,6 @@ def evaluate(data_iter, model, device, PAD_IDX, inference=False):
             all_results[batch_qid[0]].append([batch_feature_id[0],
                                               start_logits.cpu().numpy().reshape(-1),
                                               end_logits.cpu().numpy().reshape(-1)])
-            y_start_pred.append(start_logits.argmax(1).cpu().numpy())
-            y_end_pred.append(end_logits.argmax(1).cpu().numpy())
             if not inference:
                 acc_sum_start = (start_logits.argmax(1) == batch_label[:, 0]).float().sum().item()
                 acc_sum_end = (end_logits.argmax(1) == batch_label[:, 1]).float().sum().item()
@@ -157,8 +153,8 @@ def evaluate(data_iter, model, device, PAD_IDX, inference=False):
                 n += len(batch_label)
         model.train()
         if inference:
-            return [y_start_pred, y_end_pred], all_results
-        return acc_sum / (2 * n), [np.hstack(y_start_pred), np.hstack(y_end_pred)]
+            return all_results
+        return acc_sum / (2 * n)
 
 
 def show_result(batch_input, itos, num_show=5, y_pred=None, y_true=None):
@@ -215,8 +211,8 @@ def inference(config):
         raise ValueError(f"## 模型{config.model_save_path}不存在，请检查路径或者先训练模型......")
 
     model = model.to(config.device)
-    _, all_result_logits = evaluate(test_iter, model, config.device,
-                                    data_loader.PAD_IDX, inference=True)
+    all_result_logits = evaluate(test_iter, model, config.device,
+                                 data_loader.PAD_IDX, inference=True)
     data_loader.write_prediction(test_iter, all_examples,
                                  all_result_logits, config.dataset_dir)
 
@@ -224,4 +220,4 @@ def inference(config):
 if __name__ == '__main__':
     model_config = ModelConfig()
     train(config=model_config)
-    # inference(model_config)
+    inference(model_config)
