@@ -37,7 +37,7 @@ class ModelConfig:
         self.doc_stride = 128  # 滑动窗口一次滑动的长度
         self.epochs = 2
         self.model_val_per_epoch = 1
-        logger_init(log_file_name='qa', log_level=logging.INFO,
+        logger_init(log_file_name='qa', log_level=logging.DEBUG,
                     log_dir=self.logs_save_dir)
         if not os.path.exists(self.model_save_dir):
             os.makedirs(self.model_save_dir)
@@ -142,7 +142,7 @@ def evaluate(data_iter, model, device, PAD_IDX, inference=False):
                                              attention_mask=padding_mask,
                                              token_type_ids=batch_seg,
                                              position_ids=None)
-            # 将同一个问题下的所有预测样本的结果保存到一个list中
+            # 将同一个问题下的所有预测样本的结果保存到一个list中，这里只对batchsize=1时有用
             all_results[batch_qid[0]].append([batch_feature_id[0],
                                               start_logits.cpu().numpy().reshape(-1),
                                               end_logits.cpu().numpy().reshape(-1)])
@@ -196,6 +196,7 @@ def inference(config):
                                                     max_sen_len=config.max_sen_len,
                                                     doc_stride=config.doc_stride,
                                                     max_query_length=config.max_query_len,
+                                                    max_answer_length=config.max_answer_len,
                                                     max_position_embeddings=config.max_position_embeddings,
                                                     pad_index=config.pad_token_id,
                                                     n_best_size=config.n_best_size)
