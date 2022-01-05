@@ -199,7 +199,8 @@ class LoadBertPretrainingDataset(object):
         data = []
         max_len = 0
         # 这里的max_len用来记录整个数据集中最长序列的长度，在后续可将其作为padding长度的标准
-        for paragraph in tqdm(paragraphs, ncols=80, desc=" ## 正在构造NSP样本"):  # 遍历每个
+        desc = f" ## 正在构造NSP和MLM样本({filepath.split('.')[1]})"
+        for paragraph in tqdm(paragraphs, ncols=80, desc=desc):  # 遍历每个
             for i in range(len(paragraph) - 1):  # 遍历一个段落中的每一句话
                 sentence, next_sentence, is_next = self.get_next_sentence_sample(
                     paragraph[i], paragraph[i + 1], paragraphs)  # 构造NSP样本
@@ -268,23 +269,23 @@ class LoadBertPretrainingDataset(object):
                                  val_file_path=None,
                                  test_file_path=None,
                                  only_test=False):
-        postfix = f"ml{self.max_sen_len}_rs{self.random_state}_mr{str(self.masked_rate)[2:]}" \
+        postfix = f"_ml{self.max_sen_len}_rs{self.random_state}_mr{str(self.masked_rate)[2:]}" \
                   f"_mtr{str(self.masked_token_rate)[2:]}_mtur{str(self.masked_token_unchanged_rate)[2:]}"
         test_data = self.data_process(filepath=test_file_path,
-                                      postfix=postfix)['data']
+                                      postfix='test' + postfix)['data']
         test_iter = DataLoader(test_data, batch_size=self.batch_size,
                                shuffle=False, collate_fn=self.generate_batch)
         if only_test:
             logging.info(f"## 成功返回测试集，一共包含样本{len(test_iter.dataset)}个")
             return test_iter
-        data = self.data_process(filepath=train_file_path, postfix=postfix)
+        data = self.data_process(filepath=train_file_path, postfix='train' + postfix)
         train_data, max_len = data['data'], data['max_len']
         if self.max_sen_len == 'same':
             self.max_sen_len = max_len
         train_iter = DataLoader(train_data, batch_size=self.batch_size,
                                 shuffle=self.is_sample_shuffle,
                                 collate_fn=self.generate_batch)
-        val_data = self.data_process(filepath=val_file_path, postfix=postfix)['data']
+        val_data = self.data_process(filepath=val_file_path, postfix='val' + postfix)['data']
         val_iter = DataLoader(val_data, batch_size=self.batch_size,
                               shuffle=False,
                               collate_fn=self.generate_batch)
