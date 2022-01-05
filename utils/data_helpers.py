@@ -625,6 +625,7 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                     logging.debug(f"## input_tokens: {input_tokens}")
                     logging.debug(f"## input_ids:{input_ids.tolist()}")
                     logging.debug(f"## segment ids:{seg.tolist()}")
+                    logging.debug(f"## orig_map:{token_to_orig_map}")
                     logging.debug("======================\n")
                     feature_id += 1
                     if e_idx >= context_ids_len:
@@ -646,6 +647,7 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                 logging.debug(f"## input_tokens: {input_tokens}")
                 logging.debug(f"## input_ids:{input_ids.tolist()}")
                 logging.debug(f"## segment ids:{seg.tolist()}")
+                logging.debug(f"## orig_map:{token_to_orig_map}")
                 logging.debug("======================\n")
                 feature_id += 1
             example_id += 1
@@ -830,11 +832,13 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
             "PrelimPrediction",
             ["text", "start_index", "end_index", "start_logit", "end_logit"])
         prelim_predictions = collections.defaultdict(list)
-        for b_input, _, _, b_qid, _, _, b_map in tqdm(test_iter, ncols=80, desc="正在遍历候选答案"):
-            # 取一个问题对应所有特征样本的预测logits（因为有了滑动窗口，所以原始一个context可以构造得到过个训练样本）
+        for b_input, _, _, b_qid, _, b_feature_id, b_map in tqdm(test_iter, ncols=80, desc="正在遍历候选答案"):
+            # 取一个问题对应所有特征样本的预测logits（因为有了滑动窗口，所以原始一个context可以构造得到多个训练样子本）
             all_logits = logits_data[b_qid[0]]
             for logits in all_logits:
-                # 遍历每个logits的预测情况
+                if logits[0] != b_feature_id[0]:
+                    continue # 非当前子样本对应的logits忽略
+                # 遍历每个子样本对应logits的预测情况
                 start_indexes = self.get_best_indexes(logits[1], self.n_best_size)
                 # 得到开始位置几率最大的值对应的索引，例如可能是 [ 4,6,3,1]
                 end_indexes = self.get_best_indexes(logits[2], self.n_best_size)
