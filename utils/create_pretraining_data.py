@@ -155,7 +155,7 @@ class LoadBertPretrainingDataset(object):
                     masked_token_id = token_ids[mlm_pred_position]
                 # 10%的时间：用随机词替换该词
                 else:
-                    masked_token_id = random.randint(0, len(self.vocab.stoi))
+                    masked_token_id = random.randint(0, len(self.vocab.stoi) - 1)
             mlm_input_tokens_id[mlm_pred_position] = masked_token_id
             pred_positions.append(mlm_pred_position)  # 保留被mask位置的索引信息
         # 构造mlm任务中需要预测位置对应的正确标签，如果其没出现在pred_positions则表示该位置不是mask位置
