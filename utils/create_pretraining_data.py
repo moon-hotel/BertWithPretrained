@@ -292,3 +292,51 @@ class LoadBertPretrainingDataset(object):
         logging.info(f"## 成功返回训练集样本（{len(train_iter.dataset)}）个、开发集样本（{len(val_iter.dataset)}）个"
                      f"测试集样本（{len(test_iter.dataset)}）个.")
         return train_iter, test_iter, val_iter
+
+    def make_inference_samples(self, sentences=None, masked=False):
+        """
+        制作推理时的数据样本
+        :param sentences:
+        :param masked:
+        :return:
+        """
+        if not isinstance(sentences, list):
+            sentences = [sentences]
+        mask_token = self.vocab.itos[self.MASK_IDS]
+        input_tokens_ids = []
+        pred_index = []
+        for sen in sentences:
+            sen_list = sen.split()
+            tmp_token = []
+            if not masked:  # 如果传入的样本没有进行mask，则此处进行mask
+                candidate_pred_positions = [i for i in range(len(sen_list))]
+                random.shuffle(candidate_pred_positions)
+                num_mlm_preds = max(1, round(len(sen_list) * self.masked_rate))
+                for p in candidate_pred_positions[:num_mlm_preds]:
+                    sen_list[p] = mask_token
+            for item in sen_list:  # 逐个词进行tokenize
+                if item == mask_token:
+                    tmp_token.append(item)
+                else:
+                    tmp_token.extend(self.tokenizer(item))
+            token_ids = [self.vocab[t] for t in tmp_token]
+            token_ids = [self.CLS_IDX] + token_ids + [self.SEP_IDX]
+            pred_index.append(self.get_pred_idx(token_ids))  # 得到被mask的Token的位置
+            input_tokens_ids.append(torch.tensor(token_ids, dtype=torch.long))
+        input_tokens_ids = pad_sequence(input_tokens_ids,
+                                        padding_value=self.PAD_IDX,
+                                        batch_first=False,
+                                        max_len=None)  # 按一个batch中最长的样本进行padding
+        return input_tokens_ids, pred_index
+
+    def get_pred_idx(self, token_ids):
+        """
+        根据token_ids返回'[MASK]'所在的位置，即需要预测的位置
+        :param token_ids:
+        :return:
+        """
+        pred_idx = []
+        for i, t in enumerate(token_ids):
+            if t == self.MASK_IDS:
+                pred_idx.append(i)
+        return pred_idx
