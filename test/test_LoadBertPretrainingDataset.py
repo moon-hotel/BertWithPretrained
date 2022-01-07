@@ -14,9 +14,9 @@ class ModelConfig:
         self.dataset_dir = os.path.join(self.project_dir, 'data', 'WikiText')
         self.pretrained_model_dir = os.path.join(self.project_dir, "bert_base_uncased_english")
         self.vocab_path = os.path.join(self.pretrained_model_dir, 'vocab.txt')
-        self.train_file_path = os.path.join(self.dataset_dir, 'train.tokens')
-        self.val_file_path = os.path.join(self.dataset_dir, 'val.tokens')
-        self.test_file_path = os.path.join(self.dataset_dir, 'test.tokens')
+        self.train_file_path = os.path.join(self.dataset_dir, 'wiki.train.tokens')
+        self.val_file_path = os.path.join(self.dataset_dir, 'wiki.valid.tokens')
+        self.test_file_path = os.path.join(self.dataset_dir, 'wiki.test.tokens')
         self.model_save_dir = os.path.join(self.project_dir, 'cache')
         self.logs_save_dir = os.path.join(self.project_dir, 'logs')
         self.is_sample_shuffle = True
