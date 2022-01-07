@@ -293,12 +293,31 @@ class LoadBertPretrainingDataset(object):
                      f"测试集样本（{len(test_iter.dataset)}）个.")
         return train_iter, test_iter, val_iter
 
-    def make_inference_samples(self, sentences=None, masked=False):
+    def make_inference_samples(self, sentences=None, masked=False, language='en'):
         """
         制作推理时的数据样本
         :param sentences:
-        :param masked:
+        :param masked:  指传入的句子没有标记mask的位置
+        :param language:  判断是中文还是英文
         :return:
+        e.g.
+        sentences = ["I no longer love her, true,but perhaps I love her.",
+                     "Love is so short and oblivion so long."]
+        input_tokens_ids.transpose(0,1):
+                tensor([[  101,  1045,  2053,   103,  2293,  2014,  1010,  2995,  1010,  2021,
+                            3383,   103,  2293,  2014,  1012,   102],
+                        [  101,  2293,   103,  2061,  2460,  1998, 24034,  2061,  2146,  1012,
+                            102,     0,     0,     0,     0,     0]])
+        tokens:
+                [CLS] i no [MASK] love her , true , but perhaps [MASK] love her . [SEP]
+                [CLS] love [MASK] so short and oblivion so long . [SEP] [PAD] [PAD] [PAD] [PAD] [PAD]
+        pred_index:
+                [[3, 11], [2]]
+        mask:
+                tensor([[False, False, False, False, False, False, False, False, False, False,
+                        False, False, False, False, False, False],
+                      [False, False, False, False, False, False, False, False, False, False,
+                        False,  True,  True,  True,  True,  True]])
         """
         if not isinstance(sentences, list):
             sentences = [sentences]
@@ -306,7 +325,10 @@ class LoadBertPretrainingDataset(object):
         input_tokens_ids = []
         pred_index = []
         for sen in sentences:
-            sen_list = sen.split()
+            if language == 'en':
+                sen_list = sen.split()
+            else:
+                sen_list = [w for w in sen]
             tmp_token = []
             if not masked:  # 如果传入的样本没有进行mask，则此处进行mask
                 candidate_pred_positions = [i for i in range(len(sen_list))]
@@ -327,7 +349,8 @@ class LoadBertPretrainingDataset(object):
                                         padding_value=self.PAD_IDX,
                                         batch_first=False,
                                         max_len=None)  # 按一个batch中最长的样本进行padding
-        return input_tokens_ids, pred_index
+        mask = (input_tokens_ids == self.PAD_IDX).transpose(0, 1)
+        return input_tokens_ids, pred_index, mask
 
     def get_pred_idx(self, token_ids):
         """
