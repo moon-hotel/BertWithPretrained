@@ -169,6 +169,64 @@ def evaluate(config, data_iter, model, PAD_IDX):
     return [float(mlm_corrects) / mlm_totals, float(nsp_corrects) / nsp_totals]
 
 
+def inference(config, sentences=None, masked=False, language='en'):
+    bert_tokenize = BertTokenizer.from_pretrained(config.pretrained_model_dir).tokenize
+    data_loader = LoadBertPretrainingDataset(vocab_path=config.vocab_path,
+                                             tokenizer=bert_tokenize,
+                                             pad_index=config.pad_index,
+                                             random_state=config.random_state,
+                                             masked_rate=0.15)  # 15% Mask掉
+    token_ids, pred_idx, mask = data_loader.make_inference_samples(sentences,
+                                                                   masked=masked,
+                                                                   language=language)
+    model = BertForPretrainingModel(config,
+                                    config.pretrained_model_dir)
+    if os.path.exists(config.model_save_path):
+        loaded_paras = torch.load(config.model_save_path)
+        model.load_state_dict(loaded_paras)
+        logging.info("## 成功载入已有模型进行推理......")
+    model = model.to(config.device)
+    model.eval()
+    with torch.no_grad():
+        token_ids = token_ids.to(config.device)  # [src_len, batch_size]
+        mask = mask.to(config.device)
+        mlm_logits, _ = model(input_ids=token_ids,
+                              attention_mask=mask)
+    pretty_print(token_ids, mlm_logits, pred_idx,
+                 data_loader.vocab.itos, sentences, language)
+
+
+def pretty_print(token_ids, logits, pred_idx, itos, sentences, language):
+    """
+    格式化输出结果
+    :param token_ids:   [src_len, batch_size]
+    :param logits:  [src_len, batch_size, vocab_size]
+    :param pred_idx:   二维列表，每个内层列表记录了原始句子中被mask的位置
+    :param itos:
+    :param sentences: 原始句子
+    :return:
+    """
+    token_ids = token_ids.transpose(0, 1)  # [batch_size,src_len]
+    logits = logits.transpose(0, 1)  # [batch_size, src_len,vocab_size]
+    y_pred = logits.argmax(axis=2)  # [batch_size, src_len]
+    sep = " " if language == 'en' else ""
+    for token_id, sentence, y, y_idx in zip(token_ids, sentences, y_pred, pred_idx):
+        sen = [itos[id] for id in token_id]
+        sen_mask = sep.join(sen).replace(" ##", "").replace("[PAD]", "").replace(" ,", ",")
+        sen_mask = sen_mask.replace(" .", ".").replace("[SEP]", "").replace("[CLS]", "").lstrip()
+        logging.info(f" ### 原始: {sentence}")
+        logging.info(f"  ## 掩盖: {sen_mask}")
+        for idx in y_idx:
+            sen[idx] = itos[y[idx]].replace("##", "")
+        sen = sep.join(sen).replace("[PAD]", "").replace(" ,", ",")
+        sen = sen.replace(" .", ".").replace("[SEP]", "").replace("[CLS]", "").lstrip()
+        logging.info(f"  ## 预测: {sen}")
+        logging.info("===============")
+
+
 if __name__ == '__main__':
     config = ModelConfig()
     train(config)
+    sentences = ["I no longer love her, true, but perhaps I love her.",
+                 "Love is so short and oblivion so long."]
+    inference(config, sentences, masked=False, language='en')
