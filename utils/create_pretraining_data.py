@@ -30,6 +30,26 @@ def read_wiki2(filepath=None):
     return paragraphs
 
 
+def read_songci(filepath=None):
+    """
+    本函数的作用是格式化原始的ci.song.xxx.json数据集
+    下载地址为：https://github.com/chinese-poetry/chinese-poetry
+    掌柜在此感谢该仓库的作者维护与整理
+    :param filepath:
+    :return: 返回和 read_wiki2() 一样形式的结果
+    """
+    with open(filepath, 'r') as f:
+        lines = f.readlines()  # 一次读取所有行，每一行为一首词
+    paragraphs = []
+    for line in tqdm(lines, ncols=80, desc=" ## 正在读取原始数据"):
+        if "□" in line or "……" in line:
+            continue
+        if len(line.split('。')) >= 2:
+            paragraphs.append(line.strip().split('。')[:-1])
+    random.shuffle(paragraphs)  # 将所有段落打乱
+    return paragraphs
+
+
 def read_custom(filepath=None):
     pass
 
@@ -109,6 +129,8 @@ class LoadBertPretrainingDataset(object):
             return read_custom(filepath)
             # 在这里，可以调用你自己数据对应的格式化函数，
             # 但是返回格式需要同read_wiki2()保持一致。
+        elif self.data_name == 'songci':
+            return read_songci(filepath)
         else:
             raise ValueError(f"数据 {self.data_name} 不存在对应的格式化函数，"
                              f"请参考函数 read_wiki(filepath) 实现对应的格式化函数！")
