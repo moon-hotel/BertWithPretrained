@@ -38,7 +38,7 @@ def read_songci(filepath=None):
     :param filepath:
     :return: 返回和 read_wiki2() 一样形式的结果
     """
-    with open(filepath, 'r') as f:
+    with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.readlines()  # 一次读取所有行，每一行为一首词
     paragraphs = []
     for line in tqdm(lines, ncols=80, desc=" ## 正在读取原始数据"):
