@@ -51,7 +51,7 @@ def read_songci(filepath=None):
 
 
 def read_custom(filepath=None):
-    pass
+    raise NotImplementedError("本函数为实现，请参照`read_songci()`或`read_wiki2()`返回格式进行实现")
 
 
 def cache(func):
@@ -235,7 +235,7 @@ class LoadBertPretrainingDataset(object):
                 if len(token_ids) > self.max_position_embeddings - 1:
                     token_ids = token_ids[:self.max_position_embeddings - 1]  # BERT预训练模型只取前512个字符
                 token_ids += [self.SEP_IDX]
-                logging.debug(f" ## 词元结果：{[self.vocab.itos[t] for t in token_ids]}")
+                logging.debug(f" ## Mask之前词元结果：{[self.vocab.itos[t] for t in token_ids]}")
                 seg1 = [0] * (len(token_a_ids) + 2)  # 2 表示[CLS]和中间的[SEP]这两个字符
                 seg2 = [1] * (len(token_ids) - len(seg1))
                 segs = torch.tensor(seg1 + seg2, dtype=torch.long)
@@ -247,6 +247,7 @@ class LoadBertPretrainingDataset(object):
                 mlm_label = torch.tensor(mlm_label, dtype=torch.long)
                 max_len = max(max_len, token_ids.size(0))
                 logging.debug(f" ## Mask之后token ids:{token_ids.tolist()}")
+                logging.debug(f" ## Mask之后词元结果：{[self.vocab.itos[t] for t in token_ids.tolist()]}")
                 logging.debug(f" ## Mask之后label ids:{mlm_label.tolist()}")
                 logging.debug(f" ## 当前样本构造结束================== \n\n")
                 data.append([token_ids, segs, nsp_lable, mlm_label])
