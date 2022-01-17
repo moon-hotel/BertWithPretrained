@@ -1,5 +1,5 @@
 # BertWithPretrained
-本项目是一个基于PyTorch从零实现的BERT模型及相关下游任务示例
+本项目是一个基于PyTorch从零实现的BERT模型及相关下游任务示例的代码仓库，同时也包含了BERT模型以及每个下有任务原理的详细讲解。
 
 [BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding](https://arxiv.org/abs/1810.04805)
 
@@ -12,7 +12,7 @@
 - [x] [4. 基于BERT预训练模型的英文文本蕴含任务](https://www.ylkz.life/deeplearning/p10407402/) 　　　[代码](Tasks/TaskForPairSentenceClassification.py)
 - [x] [5. 基于BERT预训练模型的英文多选项任务](https://mp.weixin.qq.com/s/GqsbMBNt9XcFIjmumR04Pg) 　　　[代码](Tasks/TaskForMultipleChoice.py)
 - [ ] [6. 基于BERT预训练模型的英文问答任务](https://www.ylkz.life) 　　　[代码](Tasks/TaskForSQuADQuestionAnswering.py)
-- [ ] [7. 基于NSL和MLM任务从头训练BERT任务](https://www.ylkz.life)
+- [ ] [7. 基于NSL和MLM任务从头训练BERT任务](https://www.ylkz.life) 　　　[代码](Tasks/TaskForPretraining.py)
 
 
 ## 工程结构
@@ -30,6 +30,7 @@
     - `MultipeChoice`是SWAG问题选择数据集
     - `SQuAD`是斯坦福大学开源的问答数据集1.1版本
     - `WikiText`是维基百科英文语料用于模型预训练
+    - `SongCi`是宋词语料用于中文模型预训练
 - `model`目录中是各个模块的实现
     - `BasicBert`中是基础的BERT模型实现模块
         - `MyTransformer.py`是自注意力机制实现部分；
@@ -46,10 +47,12 @@
     - `TaskForPairSentence.py`是文本对分类任务的训练和推理实现，可用于蕴含任务（例如MNLI数据集）；
     - `TaskForMultipleChoice.py`是问答选择任务的训练和推理实现，可用于问答选择任务（例如SWAG数据集）；
     - `TaskForSQuADQuestionAnswering.py`是问题回答任务的训练和推理实现，可用于问题问答任务（例如SQuAD数据集）；
+    - `TaskForPretraining.py`是BERT模型中MLM和NSP两个预训练任务的实现部分，可用于BERT模型预训练；
 - `test`目录中是各个模块的测试案例
 - `utils`是各个工具类的实现
     - `data_helpers.py`是各个下游任务的数据预处理及数据集构建模块；
     - `log_helper.py`是日志打印模块；
+    - `creat_pretraining_data.py`是用于构造BERT预训练任务的数据集；
 
 ## 环境
 Python版本为3.6，其它相关包的版本如下：
@@ -65,7 +68,7 @@ tqdm==4.61.0
 ```
 ## 使用方式
 ### Step 1. 下载数据 
-下载完成各个数据集以及相应的BERT预训练模型（如果为空），并放入对应的目录中.
+下载完成各个数据集以及相应的BERT预训练模型（如果为空），并放入对应的目录中。具体可以查看每个数据（`data`)目录下的`README.md`文件。
 ### Step 2. 运行模型 
 进入`Tasks`目录，运行相关模型.
 ### 2.1 中文文本分类任务
