@@ -295,7 +295,7 @@ class MyMultiheadAttention(nn.Module):
         """
         return multi_head_attention_forward(query, key, value, self.num_heads,
                                             self.dropout,
-                                            self.out_proj.weight, self.out_proj.bias,
+                                            out_proj=self.out_proj,
                                             training=self.training,
                                             key_padding_mask=key_padding_mask,
                                             q_proj=self.q_proj,
@@ -309,8 +309,7 @@ def multi_head_attention_forward(query,  # [tgt_len,batch_size, embed_dim]
                                  value,  # [src_len, batch_size, embed_dim]
                                  num_heads,
                                  dropout_p,
-                                 out_proj_weight,  # [embed_dim = vdim * num_heads, embed_dim = vdim * num_heads]
-                                 out_proj_bias,
+                                 out_proj,
                                  training=True,
                                  key_padding_mask=None,  # [batch_size,src_len/tgt_len]
                                  q_proj=None,  # weight: [embed_dim,kdim * num_heads]  , bias: [embed_dim]
@@ -318,13 +317,13 @@ def multi_head_attention_forward(query,  # [tgt_len,batch_size, embed_dim]
                                  v_proj=None,  # weight: [embed_dim,kdim * num_heads]  , bias: [embed_dim]
                                  attn_mask=None,  # [tgt_len,src_len] or [num_heads*batch_size,tgt_len, src_len]
                                  ):
-    q = F.linear(query, q_proj.weight, q_proj.bias)
+    q = q_proj(query)
     #  [tgt_len,batch_size, embed_dim] x [embed_dim,kdim * num_heads] = [tgt_len,batch_size,kdim * num_heads]
 
-    k = F.linear(key, k_proj.weight, k_proj.bias)
+    k = k_proj(key)
     # [src_len, batch_size, embed_dim] x [embed_dim, kdim * num_heads] = [src_len, batch_size, kdim * num_heads]
 
-    v = F.linear(value, v_proj.weight, v_proj.bias)
+    v = v_proj(value)
     # [src_len, batch_size, embed_dim] x [embed_dim, vdim * num_heads] = [src_len, batch_size, vdim * num_heads]
     tgt_len, bsz, embed_dim = query.size()  # [tgt_len,batch_size, embed_dim]
     src_len = key.size(0)
@@ -375,7 +374,7 @@ def multi_head_attention_forward(query,  # [tgt_len,batch_size, embed_dim]
     # 再view成 [tgt_len,batch_size,num_heads*kdim]
     attn_output_weights = attn_output_weights.view(bsz, num_heads, tgt_len, src_len)
 
-    Z = F.linear(attn_output, out_proj_weight, out_proj_bias)
+    Z = out_proj(attn_output)
     # 这里就是多个z  线性组合成Z  [tgt_len,batch_size,embed_dim]
 
     return Z, attn_output_weights.sum(dim=1) / num_heads  # average attention weights over heads
