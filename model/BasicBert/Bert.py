@@ -218,7 +218,7 @@ class BertPooler(nn.Module):
 
 def format_paras_for_torch(loaded_paras_names, loaded_paras):
     """
-    格式化成符合torch框架中MultiHeadAttention的参数形式
+    该函数的作用是将预训练参数格式化成符合torch(1.5.0)框架中MultiHeadAttention的参数形式
     :param loaded_paras_names:
     :param loaded_paras:
     :return:
@@ -277,7 +277,6 @@ class BertModel(nn.Module):
                 token_type_ids=None,
                 position_ids=None):
         """
-
         :param input_ids:  [src_len, batch_size]
         :param attention_mask: [batch_size, src_len] mask掉padding部分的内容
         :param token_type_ids: [src_len, batch_size]  # 如果输入模型的只有一个序列，那么这个参数也不用传值
