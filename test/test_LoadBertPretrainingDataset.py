@@ -69,14 +69,16 @@ if __name__ == '__main__':
                                              masked_token_rate=model_config.masked_token_rate,
                                              masked_token_unchanged_rate=model_config.masked_token_unchanged_rate)
 
-    train_iter, test_iter, val_iter = data_loader.load_train_val_test_data(
-        test_file_path=model_config.test_file_path,
-        train_file_path=model_config.train_file_path,
-        val_file_path=model_config.val_file_path)
-    # for b_token_ids, b_segs, b_mask, b_mlm_label, b_nsp_label in test_iter:
-    #     print(b_token_ids.shape)  # [src_len,batch_size]
-    #     print(b_segs.shape)  # [src_len,batch_size]
-    #     print(b_mask.shape)  # [batch_size,src_len]
-    #     print(b_mlm_label.shape)  # [src_len,batch_size]
-    #     print(b_nsp_label.shape)  # [batch_size]
-    #     break
+    # train_iter, test_iter, val_iter = data_loader.load_train_val_test_data(
+    #     test_file_path=model_config.test_file_path,
+    #     train_file_path=model_config.train_file_path,
+    #     val_file_path=model_config.val_file_path)
+    test_iter = data_loader.load_train_val_test_data(test_file_path=model_config.test_file_path,
+                                                     only_test=True)
+    for b_token_ids, b_segs, b_mask, b_mlm_label, b_nsp_label in test_iter:
+        print(b_token_ids.shape)  # [src_len,batch_size]
+        print(b_segs.shape)  # [src_len,batch_size]
+        print(b_mask.shape)  # [batch_size,src_len]
+        print(b_mlm_label.shape)  # [src_len,batch_size]
+        print(b_nsp_label.shape)  # [batch_size]
+        break
