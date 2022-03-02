@@ -9,9 +9,9 @@
 - [x] [1. BERT原理与NSL和MLM](https://www.ylkz.life/deeplearning/p10631450/) <br>
 - [x] [2. 从零实现BERT网络模型](https://www.ylkz.life/deeplearning/p10602241/) 　　　[代码](model/BasicBert)
 - [x] [3. 基于BERT预训练模型的中文文本分类任务](https://www.ylkz.life/deeplearning/p10979382/) 　　　[代码](Tasks/TaskForSingleSentenceClassification.py)
-- [x] [4. 基于BERT预训练模型的英文文本蕴含任务](https://www.ylkz.life/deeplearning/p10407402/) 　　　[代码](Tasks/TaskForPairSentenceClassification.py)
-- [x] [5. 基于BERT预训练模型的英文多选项任务](https://mp.weixin.qq.com/s/GqsbMBNt9XcFIjmumR04Pg) 　　　[代码](Tasks/TaskForMultipleChoice.py)
-- [ ] [6. 基于BERT预训练模型的英文问答任务](https://www.ylkz.life) 　　　[代码](Tasks/TaskForSQuADQuestionAnswering.py)
+- [x] [4. 基于BERT预训练模型的英文文本蕴含(MNLI)任务](https://www.ylkz.life/deeplearning/p10407402/) 　　　[代码](Tasks/TaskForPairSentenceClassification.py)
+- [x] [5. 基于BERT预训练模型的英文多选项(SWAG)任务](https://mp.weixin.qq.com/s/GqsbMBNt9XcFIjmumR04Pg) 　　　[代码](Tasks/TaskForMultipleChoice.py)
+- [x] [6. 基于BERT预训练模型的英文问答(SQuAD)任务](https://www.ylkz.life/deeplearning/p10265968/) 　　　[代码](Tasks/TaskForSQuADQuestionAnswering.py)
 - [ ] [7. 基于NSL和MLM任务从头训练BERT任务](https://www.ylkz.life) 　　　[代码](Tasks/TaskForPretraining.py)
 
 
