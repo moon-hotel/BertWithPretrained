@@ -19,7 +19,6 @@ class PositionalEmbedding(nn.Module):
 
     def __init__(self, hidden_size, max_position_embeddings=512, initializer_range=0.02):
         super(PositionalEmbedding, self).__init__()
-        assert max_position_embeddings >= 512, "config.max_position_embeddings参数必须大于等于512"
         # 因为BERT预训练模型的长度为512
         self.embedding = nn.Embedding(max_position_embeddings, hidden_size)
         self._reset_parameters(initializer_range)
