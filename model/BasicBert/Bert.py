@@ -245,7 +245,7 @@ def format_paras_for_torch(loaded_paras_names, loaded_paras):
     return torch_paras
 
 
-def replace_512_position(init_embedding, loaded_embedding, config):
+def replace_512_position(init_embedding, loaded_embedding):
     """
     本函数的作用是当max_positional_embedding > 512时，用预训练模型中的512个向量来
     替换随机初始化的positional embedding中的前512个向量
@@ -324,8 +324,7 @@ class BertModel(nn.Module):
                     # 这部分代码用来消除预训练模型只能输入小于512个字符的限制
                     if config.max_position_embeddings > 512:
                         new_embedding = replace_512_position(state_dict[model_paras_names[i]],
-                                                             loaded_paras[loaded_paras_names[i]],
-                                                             config)
+                                                             loaded_paras[loaded_paras_names[i]])
                         state_dict[model_paras_names[i]] = new_embedding
                         continue
                 state_dict[model_paras_names[i]] = torch_paras[i]
