@@ -337,8 +337,7 @@ class BertModel(nn.Module):
                     # 这部分代码用来消除预训练模型只能输入小于512个字符的限制
                     if config.max_position_embeddings > 512:
                         new_embedding = replace_512_position(state_dict[model_paras_names[i]],
-                                                             loaded_paras[loaded_paras_names[i]],
-                                                             config)
+                                                             loaded_paras[loaded_paras_names[i]])
                         state_dict[model_paras_names[i]] = new_embedding
                         continue
                 state_dict[model_paras_names[i]] = loaded_paras[loaded_paras_names[i]]
