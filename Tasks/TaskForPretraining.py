@@ -11,7 +11,7 @@ from transformers import BertTokenizer
 from transformers import AdamW
 from transformers import get_polynomial_decay_schedule_with_warmup
 from torch.utils.tensorboard import SummaryWriter
-
+from copy import deepcopy
 import torch
 import time
 
@@ -36,28 +36,27 @@ class ModelConfig:
         self.test_file_path = os.path.join(self.dataset_dir, 'songci.test.txt')
         self.data_name = 'songci'
 
+        # 如果需要切换数据集，只需要更改上面的配置即可
         self.vocab_path = os.path.join(self.pretrained_model_dir, 'vocab.txt')
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.model_save_dir = os.path.join(self.project_dir, 'cache')
         self.logs_save_dir = os.path.join(self.project_dir, 'logs')
-        self.model_save_path = os.path.join(self.model_save_dir, f'model_{self.data_name}.pt')
+        self.model_save_path = os.path.join(self.model_save_dir, f'model_{self.data_name}.bin')
         self.writer = SummaryWriter(f"runs/{self.data_name}")
         self.is_sample_shuffle = True
         self.use_embedding_weight = True
-        self.batch_size = 16
+        self.batch_size = 32
         self.max_sen_len = None  # 为None时则采用每个batch中最长的样本对该batch中的样本进行padding
         self.pad_index = 0
-        self.random_state = 2021
-        self.learning_rate = 3.5e-5
+        self.random_state = 2022
+        self.learning_rate = 5e-5
         self.weight_decay = 0.01
-        self.num_warmup_steps = 10000
-        self.num_train_steps = 100000
         self.masked_rate = 0.15
         self.masked_token_rate = 0.8
         self.masked_token_unchanged_rate = 0.5
         self.log_level = logging.DEBUG
         self.use_torch_multi_head = False  # False表示使用model/BasicBert/MyTransformer中的多头实现
-        self.epochs = 2
+        self.epochs = 200
         self.model_val_per_epoch = 1
 
         logger_init(log_file_name=self.data_name, log_level=self.log_level,
@@ -122,8 +121,8 @@ def train(config):
     # optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
     optimizer = AdamW(optimizer_grouped_parameters)
     scheduler = get_polynomial_decay_schedule_with_warmup(optimizer,
-                                                          config.num_warmup_steps,
-                                                          config.num_train_steps,
+                                                          int(len(train_iter) * 0),
+                                                          int(config.epochs * len(train_iter)),
                                                           last_epoch=last_epoch)
     max_acc = 0
     state_dict = None
@@ -166,9 +165,13 @@ def train(config):
             mlm_acc, nsp_acc = evaluate(config, val_iter, model, data_loader.PAD_IDX)
             logging.info(f" ### MLM Accuracy on val: {round(mlm_acc, 4)}, "
                          f"NSP Accuracy on val: {round(nsp_acc, 4)}")
+            config.writer.add_scalars(main_tag='Testing/Accuracy',
+                                      tag_scalar_dict={'NSP': nsp_acc,
+                                                       'MLM': mlm_acc},
+                                      global_step=scheduler.last_epoch)
             if mlm_acc > max_acc:
                 max_acc = mlm_acc
-                state_dict = model.state_dict()
+                state_dict = deepcopy(model.state_dict())
             torch.save({'last_epoch': scheduler.last_epoch,
                         'model_state_dict': state_dict},
                        config.model_save_path)
@@ -240,6 +243,8 @@ def inference(config, sentences=None, masked=False, language='en'):
         loaded_paras = checkpoint['model_state_dict']
         model.load_state_dict(loaded_paras)
         logging.info("## 成功载入已有模型进行推理......")
+    else:
+        raise ValueError(f"模型 {config.model_save_path} 不存在！")
     model = model.to(config.device)
     model.eval()
     with torch.no_grad():
