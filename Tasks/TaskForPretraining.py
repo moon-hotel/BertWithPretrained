@@ -45,12 +45,12 @@ class ModelConfig:
         self.writer = SummaryWriter(f"runs/{self.data_name}")
         self.is_sample_shuffle = True
         self.use_embedding_weight = True
-        self.batch_size = 32
+        self.batch_size = 16
         self.max_sen_len = None  # 为None时则采用每个batch中最长的样本对该batch中的样本进行padding
         self.pad_index = 0
         self.random_state = 2022
-        self.learning_rate = 5e-5
-        self.weight_decay = 0.01
+        self.learning_rate = 4e-5
+        self.weight_decay = 0.1
         self.masked_rate = 0.15
         self.masked_token_rate = 0.8
         self.masked_token_unchanged_rate = 0.5
@@ -169,6 +169,7 @@ def train(config):
                                       tag_scalar_dict={'NSP': nsp_acc,
                                                        'MLM': mlm_acc},
                                       global_step=scheduler.last_epoch)
+            # mlm_acc, nsp_acc = evaluate(config, train_iter, model, data_loader.PAD_IDX)
             if mlm_acc > max_acc:
                 max_acc = mlm_acc
                 state_dict = deepcopy(model.state_dict())
@@ -226,7 +227,7 @@ def evaluate(config, data_iter, model, PAD_IDX):
     return [float(mlm_corrects) / mlm_totals, float(nsp_corrects) / nsp_totals]
 
 
-def inference(config, sentences=None, masked=False, language='en'):
+def inference(config, sentences=None, masked=False, language='en', random_state=None):
     bert_tokenize = BertTokenizer.from_pretrained(config.pretrained_model_dir).tokenize
     data_loader = LoadBertPretrainingDataset(vocab_path=config.vocab_path,
                                              tokenizer=bert_tokenize,
@@ -235,7 +236,8 @@ def inference(config, sentences=None, masked=False, language='en'):
                                              masked_rate=0.15)  # 15% Mask掉
     token_ids, pred_idx, mask = data_loader.make_inference_samples(sentences,
                                                                    masked=masked,
-                                                                   language=language)
+                                                                   language=language,
+                                                                   random_state=random_state)
     model = BertForPretrainingModel(config,
                                     config.pretrained_model_dir)
     if os.path.exists(config.model_save_path):

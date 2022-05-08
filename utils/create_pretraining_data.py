@@ -316,7 +316,7 @@ class LoadBertPretrainingDataset(object):
                      f"测试集样本（{len(test_iter.dataset)}）个.")
         return train_iter, test_iter, val_iter
 
-    def make_inference_samples(self, sentences=None, masked=False, language='en'):
+    def make_inference_samples(self, sentences=None, masked=False, language='en', random_state=None):
         """
         制作推理时的数据样本
         :param sentences:
@@ -355,6 +355,7 @@ class LoadBertPretrainingDataset(object):
             tmp_token = []
             if not masked:  # 如果传入的样本没有进行mask，则此处进行mask
                 candidate_pred_positions = [i for i in range(len(sen_list))]
+                random.seed(random_state)
                 random.shuffle(candidate_pred_positions)
                 num_mlm_preds = max(1, round(len(sen_list) * self.masked_rate))
                 for p in candidate_pred_positions[:num_mlm_preds]:
