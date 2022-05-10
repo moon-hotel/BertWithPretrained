@@ -12,8 +12,7 @@
 - [x] [4. 基于BERT预训练模型的英文文本蕴含(MNLI)任务](https://www.ylkz.life/deeplearning/p10407402/) 　　　[代码](Tasks/TaskForPairSentenceClassification.py)
 - [x] [5. 基于BERT预训练模型的英文多选项(SWAG)任务](https://mp.weixin.qq.com/s/GqsbMBNt9XcFIjmumR04Pg) 　　　[代码](Tasks/TaskForMultipleChoice.py)
 - [x] [6. 基于BERT预训练模型的英文问答(SQuAD)任务](https://www.ylkz.life/deeplearning/p10265968/) 　　　[代码](Tasks/TaskForSQuADQuestionAnswering.py)
-- [ ] [7. 基于NSL和MLM任务从头训练BERT任务](https://www.ylkz.life) 　　　[代码](Tasks/TaskForPretraining.py)
-
+- [x] [7. 基于NSL和MLM任务从头训练BERT任务](https://mp.weixin.qq.com/s/2Vtxv1Wj9knEFKUyUeQ_6w) 　　　[代码](Tasks/TaskForPretraining.py)
 
 ## 工程结构
 - `bert_base_chinese`目录中是BERT base中文预训练模型以及配置文件
@@ -176,4 +175,33 @@ python TaskForSQuADQuestionAnswering.py
 python evaluate-v1.1.py dev-v1.1.json best_result.json
 
 "exact_match" : 80.879848628193, "f1": 88.338575234135
+```
+
+### 2.4 NSP与MLM任务训练及推理
+
+```python
+if __name__ == '__main__':
+    config = ModelConfig()
+    train(config)
+    sentences_1 = ["I no longer love her, true, but perhaps I love her.",
+                   "Love is so short and oblivion so long."]
+
+    sentences_2 = ["我住长江头，君住长江尾。",
+                   "日日思君不见君，共饮长江水。",
+                   "此水几时休，此恨何时已。",
+                   "只愿君心似我心，定不负相思意。"]
+    inference(config, sentences_2, masked=False, language='zh')
+```
+
+上述代码运行结束后将会看到类似如下所示的输出结果：
+```python
+- INFO: ## 成功载入已有模型进行推理……
+- INFO:  ### 原始：我住长江头，君住长江尾。
+- INFO:   ## 掩盖：我住长江头，[MASK]住长[MASK]尾。
+- INFO:   ## 预测：我住长江头，君住长河尾。  
+- INFO: ====================
+- INFO:  ### 原始：日日思君不见君，共饮长江水。
+- INFO:   ## 掩盖：日日思君不[MASK]君，共[MASK]长江水。
+- INFO:   ## 预测：日日思君不见君，共饮长江水。
+#   ......
 ```
