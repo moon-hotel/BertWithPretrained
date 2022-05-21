@@ -322,6 +322,7 @@ class LoadBertPretrainingDataset(object):
         :param sentences:
         :param masked:  指传入的句子没有标记mask的位置
         :param language:  判断是中文zh还是英文en
+        :param random_state:  控制mask字符时的随机状态
         :return:
         e.g.
         sentences = ["I no longer love her, true,but perhaps I love her.",

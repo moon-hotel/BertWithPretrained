@@ -228,6 +228,14 @@ def evaluate(config, data_iter, model, PAD_IDX):
 
 
 def inference(config, sentences=None, masked=False, language='en', random_state=None):
+    """
+    :param config:
+    :param sentences:
+    :param masked: 推理时的句子是否Mask
+    :param language: 语种
+    :param random_state:  控制mask字符时的随机状态
+    :return:
+    """
     bert_tokenize = BertTokenizer.from_pretrained(config.pretrained_model_dir).tokenize
     data_loader = LoadBertPretrainingDataset(vocab_path=config.vocab_path,
                                              tokenizer=bert_tokenize,
@@ -293,4 +301,4 @@ if __name__ == '__main__':
                    "Love is so short and oblivion so long."]
     sentences_2 = ["十年生死两茫茫。不思量。自难忘。千里孤坟，无处话凄凉。",
                    "红酥手。黄藤酒。满园春色宫墙柳。"]
-    inference(config, sentences_2, masked=False, language='zh')
+    inference(config, sentences_2, masked=False, language='zh',random_state=2022)
