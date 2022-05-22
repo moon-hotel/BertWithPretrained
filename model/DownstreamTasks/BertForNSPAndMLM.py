@@ -34,7 +34,7 @@ class BertForNextSentencePrediction(nn.Module):
         seq_relationship_score = self.classifier(pooled_output)
         # seq_relationship_score: [batch_size, 2]
         if next_sentence_labels is not None:
-            loss_fct = nn.CrossEntropyLoss()
+            loss_fct = nn.CrossEntropyLoss(ignore_index=0)
             loss = loss_fct(seq_relationship_score.view(-1, 2), next_sentence_labels.view(-1))
             return loss
         else:
@@ -118,7 +118,7 @@ class BertForMaskedLM(nn.Module):
         prediction_scores = self.classifier(sequence_output)
         # prediction_scores: [src_len, batch_size, vocab_size]
         if masked_lm_labels is not None:
-            loss_fct = nn.CrossEntropyLoss(ignore_index=-1)
+            loss_fct = nn.CrossEntropyLoss(ignore_index=0)
             masked_lm_loss = loss_fct(prediction_scores.reshape(-1, self.config.vocab_size),
                                       masked_lm_labels.reshape(-1))
             return masked_lm_loss
@@ -163,7 +163,7 @@ class BertForPretrainingModel(nn.Module):
         nsp_pred_logits = self.nsp_prediction(pooled_output)
         # nsp_pred_logits： [batch_size, 2]
         if masked_lm_labels is not None and next_sentence_labels is not None:
-            loss_fct = nn.CrossEntropyLoss(ignore_index=-1)
+            loss_fct = nn.CrossEntropyLoss(ignore_index=0)
             mlm_loss = loss_fct(mlm_prediction_logits.reshape(-1, self.config.vocab_size),
                                 masked_lm_labels.reshape(-1))
             nsp_loss = loss_fct(nsp_pred_logits.reshape(-1, 2),

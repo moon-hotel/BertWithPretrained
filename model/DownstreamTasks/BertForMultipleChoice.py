@@ -6,6 +6,7 @@ class BertForMultipleChoice(nn.Module):
     """
     用于类似SWAG数据集的下游任务
     """
+
     def __init__(self, config, bert_pretrained_model_dir=None):
         super(BertForMultipleChoice, self).__init__()
         self.num_choice = config.num_labels
@@ -43,7 +44,7 @@ class BertForMultipleChoice(nn.Module):
         logits = self.classifier(pooled_output)  # [batch_size*num_choice, 1]
         shaped_logits = logits.view(-1, self.num_choice)  # [batch_size, num_choice]
         if labels is not None:
-            loss_fct = nn.CrossEntropyLoss()
+            loss_fct = nn.CrossEntropyLoss(ignore_index=0)
             loss = loss_fct(shaped_logits, labels.view(-1))
             return loss, shaped_logits
         else:

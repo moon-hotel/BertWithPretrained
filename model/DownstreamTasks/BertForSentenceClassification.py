@@ -34,7 +34,7 @@ class BertForSentenceClassification(nn.Module):
         pooled_output = self.dropout(pooled_output)
         logits = self.classifier(pooled_output)  # [batch_size, num_label]
         if labels is not None:
-            loss_fct = nn.CrossEntropyLoss()
+            loss_fct = nn.CrossEntropyLoss(ignore_index=0)
             loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
             return loss, logits
         else:
