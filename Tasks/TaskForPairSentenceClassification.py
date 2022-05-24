@@ -125,10 +125,9 @@ def inference(config):
                                                         max_position_embeddings=config.max_position_embeddings,
                                                         pad_index=config.pad_token_id,
                                                         is_sample_shuffle=config.is_sample_shuffle)
-    train_iter, test_iter, val_iter = data_loader.load_train_val_test_data(config.train_file_path,
-                                                                           config.val_file_path,
-                                                                           config.test_file_path)
-    acc = evaluate(test_iter, model, device=config.device)
+    test_iter = data_loader.load_train_val_test_data(test_file_path=config.test_file_path,
+                                                     only_test=True)
+    acc = evaluate(test_iter, model, device=config.device, PAD_IDX=data_loader.PAD_IDX)
     logging.info(f"Acc on test:{acc:.3f}")
 
 
