@@ -150,7 +150,8 @@ class LoadSingleSentenceClassificationDataset:
         self.max_sen_len = max_sen_len
         self.is_sample_shuffle = is_sample_shuffle
 
-    def data_process(self, filepath):
+    @cache
+    def data_process(self, filepath, postfix='cache'):
         """
         将每一句话中的每一个词根据字典转换成索引的形式，同时返回所有样本中最长样本的长度
         :param filepath: 数据集路径
@@ -176,15 +177,18 @@ class LoadSingleSentenceClassificationDataset:
                                  val_file_path=None,
                                  test_file_path=None,
                                  only_test=False):
-        test_data, _ = self.data_process(test_file_path)
+        postfix = str(self.max_sen_len)
+        test_data, _ = self.data_process(filepath=test_file_path, postfix=postfix)
         test_iter = DataLoader(test_data, batch_size=self.batch_size,
                                shuffle=False, collate_fn=self.generate_batch)
         if only_test:
             return test_iter
-        train_data, max_sen_len = self.data_process(train_file_path)  # 得到处理好的所有样本
+        train_data, max_sen_len = self.data_process(filepath=train_file_path,
+                                                    postfix=postfix)  # 得到处理好的所有样本
         if self.max_sen_len == 'same':
             self.max_sen_len = max_sen_len
-        val_data, _ = self.data_process(val_file_path)
+        val_data, _ = self.data_process(filepath=val_file_path,
+                                        postfix=postfix)
         train_iter = DataLoader(train_data, batch_size=self.batch_size,  # 构造DataLoader
                                 shuffle=self.is_sample_shuffle, collate_fn=self.generate_batch)
         val_iter = DataLoader(val_data, batch_size=self.batch_size,
@@ -209,7 +213,8 @@ class LoadPairSentenceClassificationDataset(LoadSingleSentenceClassificationData
         super(LoadPairSentenceClassificationDataset, self).__init__(**kwargs)
         pass
 
-    def data_process(self, filepath):
+    @cache
+    def data_process(self, filepath,postfix='cache'):
         """
         将每一句话中的每一个词根据字典转换成索引的形式，同时返回所有样本中最长样本的长度
         :param filepath: 数据集路径
@@ -259,7 +264,8 @@ class LoadMultipleChoiceDataset(LoadSingleSentenceClassificationDataset):
         super(LoadMultipleChoiceDataset, self).__init__(**kwargs)
         self.num_choice = num_choice
 
-    def data_process(self, filepath):
+    @cache
+    def data_process(self, filepath,postfix='cache'):
         data = pd.read_csv(filepath)
         questions = data['startphrase']
         answers0, answers1 = data['ending0'], data['ending1']
@@ -837,7 +843,7 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
             all_logits = logits_data[b_qid[0]]
             for logits in all_logits:
                 if logits[0] != b_feature_id[0]:
-                    continue # 非当前子样本对应的logits忽略
+                    continue  # 非当前子样本对应的logits忽略
                 # 遍历每个子样本对应logits的预测情况
                 start_indexes = self.get_best_indexes(logits[1], self.n_best_size)
                 # 得到开始位置几率最大的值对应的索引，例如可能是 [ 4,6,3,1]
