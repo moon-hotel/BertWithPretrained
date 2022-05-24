@@ -170,7 +170,7 @@ def show_result(qas, y_pred, itos=None, num_show=5):
                 a += " ## True"
             else:
                 a += " ## False"
-            logging.info(f"[{count + 1}/{num_show}] ### {q + a}")
+            logging.info(f"[{num_show}/{count}] ### {q + a}")
         logging.info("\n")
 
 
