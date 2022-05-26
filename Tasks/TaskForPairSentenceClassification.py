@@ -5,7 +5,7 @@ from model import BertForSentenceClassification
 from model import BertConfig
 from utils import LoadPairSentenceClassificationDataset
 from utils import logger_init
-from transformers import BertTokenizer
+from transformers import BertTokenizer, get_scheduler
 import logging
 import torch
 import os
@@ -27,9 +27,10 @@ class ModelConfig:
         self.split_sep = '_!_'
         self.is_sample_shuffle = True
         self.batch_size = 16
+        self.learning_rate = 3.5e-5
         self.max_sen_len = None
         self.num_labels = 3
-        self.epochs = 10
+        self.epochs = 5
         self.model_val_per_epoch = 2
         logger_init(log_file_name='pair', log_level=logging.INFO,
                     log_dir=self.logs_save_dir)
@@ -56,7 +57,7 @@ def train(config):
         model.load_state_dict(loaded_paras)
         logging.info("## 成功载入已有模型，进行追加训练......")
     model = model.to(config.device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=3e-5)
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
     model.train()
     bert_tokenize = BertTokenizer.from_pretrained(
         model_config.pretrained_model_dir).tokenize
@@ -72,6 +73,10 @@ def train(config):
         data_loader.load_train_val_test_data(config.train_file_path,
                                              config.val_file_path,
                                              config.test_file_path)
+    lr_scheduler = get_scheduler(name='linear',
+                                 optimizer=optimizer,
+                                 num_warmup_steps=int(len(train_iter) * 0),
+                                 num_training_steps=int(config.epochs * len(train_iter)))
     max_acc = 0
     for epoch in range(config.epochs):
         losses = 0
@@ -89,6 +94,7 @@ def train(config):
                 labels=label)
             optimizer.zero_grad()
             loss.backward()
+            lr_scheduler.step()
             optimizer.step()
             losses += loss.item()
             acc = (logits.argmax(1) == label).float().mean()

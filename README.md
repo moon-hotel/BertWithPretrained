@@ -15,6 +15,7 @@
 - [x] [6. 基于BERT预训练模型的英文问答(SQuAD)任务](https://www.ylkz.life/deeplearning/p10265968/) 　　　[代码](Tasks/TaskForSQuADQuestionAnswering.py)
 - [x] [7. 基于NSL和MLM任务从头训练BERT任务](https://mp.weixin.qq.com/s/2Vtxv1Wj9knEFKUyUeQ_6w) 　　　[代码](Tasks/TaskForPretraining.py)
 - [ ] [8. 基于BERT预训练模型的中文关系抽取任务](https://www.ylkz.life)
+- [ ] [9. 基于BERT预训练模型的命名体识别任务](https://www.ylkz.life)
 ## 工程结构
 - `bert_base_chinese`目录中是BERT base中文预训练模型以及配置文件
 
@@ -112,8 +113,8 @@ python TaskForPairSentenceClassification.py
 ...
 -- INFO: Epoch: 9, Batch[0/17181], Train loss :0.064, Train acc: 1.000
 -- INFO: Epoch: 9, Train loss: 0.142, Epoch time = 2542.781s
--- INFO: Accurcay on val 0.797
--- INFO: Accurcay on val 0.810
+-- INFO: Accurcay on val 0.827
+-- INFO: Accurcay on val 0.830
 ```
 
 ### 2.3 SWAG多项选择任务
