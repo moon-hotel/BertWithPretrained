@@ -357,8 +357,10 @@ def multi_head_attention_forward(query,  # [tgt_len,batch_size, embed_dim]
         attn_output_weights = attn_output_weights.view(bsz, num_heads, tgt_len, src_len)
         # 变成 [batch_size, num_heads, tgt_len, src_len]的形状
         attn_output_weights = attn_output_weights.masked_fill(
-            key_padding_mask.unsqueeze(1).unsqueeze(2),  # 扩展维度，从[batch_size,src_len]变成[batch_size,1,1,src_len]
+            key_padding_mask.unsqueeze(1).unsqueeze(2),
             float('-inf'))  #
+        # 扩展维度，key_padding_mask从[batch_size,src_len]变成[batch_size,1,1,src_len]
+        # 然后再对attn_output_weights进行填充
         attn_output_weights = attn_output_weights.view(bsz * num_heads, tgt_len,
                                                        src_len)  # [batch_size * num_heads, tgt_len, src_len]
 
