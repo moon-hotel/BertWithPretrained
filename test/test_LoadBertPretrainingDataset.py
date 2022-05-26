@@ -82,3 +82,13 @@ if __name__ == '__main__':
         print(b_mlm_label.shape)  # [src_len,batch_size]
         print(b_nsp_label.shape)  # [batch_size]
         break
+
+    sentences = ["十年生死两茫茫。不思量。自难忘。千里孤坟，无处话凄凉。",
+                   "红酥手。黄藤酒。满园春色宫墙柳。"]
+    token_ids, pred_idx, mask = data_loader.make_inference_samples(sentences,
+                                                                   masked=False,
+                                                                   language='zh',
+                                                                   random_state=2022)
+    print(token_ids.transpose(0, 1))
+    print(pred_idx)
+    print(mask)
