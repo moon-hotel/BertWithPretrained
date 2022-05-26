@@ -44,7 +44,7 @@ class BertForMultipleChoice(nn.Module):
         logits = self.classifier(pooled_output)  # [batch_size*num_choice, 1]
         shaped_logits = logits.view(-1, self.num_choice)  # [batch_size, num_choice]
         if labels is not None:
-            loss_fct = nn.CrossEntropyLoss(ignore_index=0)
+            loss_fct = nn.CrossEntropyLoss()
             loss = loss_fct(shaped_logits, labels.view(-1))
             return loss, shaped_logits
         else:

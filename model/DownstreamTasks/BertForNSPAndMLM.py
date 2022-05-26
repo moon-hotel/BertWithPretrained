@@ -34,7 +34,7 @@ class BertForNextSentencePrediction(nn.Module):
         seq_relationship_score = self.classifier(pooled_output)
         # seq_relationship_score: [batch_size, 2]
         if next_sentence_labels is not None:
-            loss_fct = nn.CrossEntropyLoss(ignore_index=0)
+            loss_fct = nn.CrossEntropyLoss()
             loss = loss_fct(seq_relationship_score.view(-1, 2), next_sentence_labels.view(-1))
             return loss
         else:
@@ -163,11 +163,15 @@ class BertForPretrainingModel(nn.Module):
         nsp_pred_logits = self.nsp_prediction(pooled_output)
         # nsp_pred_logits： [batch_size, 2]
         if masked_lm_labels is not None and next_sentence_labels is not None:
-            loss_fct = nn.CrossEntropyLoss(ignore_index=0)
-            mlm_loss = loss_fct(mlm_prediction_logits.reshape(-1, self.config.vocab_size),
-                                masked_lm_labels.reshape(-1))
-            nsp_loss = loss_fct(nsp_pred_logits.reshape(-1, 2),
-                                next_sentence_labels.reshape(-1))
+            loss_fct_mlm = nn.CrossEntropyLoss(ignore_index=0)
+            # MLM任务在构造数据集时pandding部分和MASK部分都是用的0来填充，所以ignore_index需要指定为0
+            loss_fct_nsp = nn.CrossEntropyLoss()
+            # 由于NSP中的分类标签中含有0，上面MLM中的损失指定了ignore_index=0，所以这里需要重新定义一个CrossEntropyLoss
+            # 如果MLM任务在padding和MASK中用100之类的来代替，那么两者可以共用一个CrossEntropyLoss
+            mlm_loss = loss_fct_mlm(mlm_prediction_logits.reshape(-1, self.config.vocab_size),
+                                    masked_lm_labels.reshape(-1))
+            nsp_loss = loss_fct_nsp(nsp_pred_logits.reshape(-1, 2),
+                                    next_sentence_labels.reshape(-1))
             total_loss = mlm_loss + nsp_loss
             return total_loss, mlm_prediction_logits, nsp_pred_logits
         else:
