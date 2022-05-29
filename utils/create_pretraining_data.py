@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 import os
 
 
-def read_wiki2(filepath=None):
+def read_wiki2(filepath=None,seps='.'):
     """
     本函数的作用是格式化原始的wikitext-2数据集
     下载地址为：https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-2-v1.zip
@@ -24,13 +24,20 @@ def read_wiki2(filepath=None):
     # ②只取每一个段落中有至少两句话的段，因为后续要构造next Sentence
     paragraphs = []
     for line in tqdm(lines, ncols=80, desc=" ## 正在读取原始数据"):
-        if len(line.split(' . ')) >= 2:
-            paragraphs.append(line.strip().lower().split(' . '))
+        if len(line.split(' . ')) < 2:
+            continue
+        line = line.strip()
+        paragraphs.append([line[0]])
+        for w in line[1:]:
+            if paragraphs[-1][-1][-1] in seps:
+                paragraphs[-1].append(w)
+            else:
+                paragraphs[-1][-1] += w
     random.shuffle(paragraphs)  # 将所有段落打乱
     return paragraphs
 
 
-def read_songci(filepath=None):
+def read_songci(filepath=None, seps='。'):
     """
     本函数的作用是格式化原始的ci.song.xxx.json数据集
     下载地址为：https://github.com/chinese-poetry/chinese-poetry
@@ -42,10 +49,15 @@ def read_songci(filepath=None):
         lines = f.readlines()  # 一次读取所有行，每一行为一首词
     paragraphs = []
     for line in tqdm(lines, ncols=80, desc=" ## 正在读取原始数据"):
-        if "□" in line or "……" in line:
+        if "□" in line or "……" in line or len(line.split('。')) < 2:
             continue
-        if len(line.split('。')) >= 2:
-            paragraphs.append(line.strip().split('。')[:-1])
+        paragraphs.append([line[0]])
+        line = line.strip() # 去掉换行符和两边的空格
+        for w in line[1:]:
+            if paragraphs[-1][-1][-1] in seps:
+                paragraphs[-1].append(w)
+            else:
+                paragraphs[-1][-1] += w
     random.shuffle(paragraphs)  # 将所有段落打乱
     return paragraphs
 
@@ -229,6 +241,9 @@ class LoadBertPretrainingDataset(object):
                 logging.debug(f" ## 当前句文本：{sentence}")
                 logging.debug(f" ## 下一句文本：{next_sentence}")
                 logging.debug(f" ## 下一句标签：{is_next}")
+                if len(next_sentence) < 2:
+                    logging.warning(f"句子'{sentence}'的下一句为空，请检查数据预处理。 当前段落文本为{paragraph}")
+                    continue
                 token_a_ids = [self.vocab[token] for token in self.tokenizer(sentence)]
                 token_b_ids = [self.vocab[token] for token in self.tokenizer(next_sentence)]
                 token_ids = [self.CLS_IDX] + token_a_ids + [self.SEP_IDX] + token_b_ids
