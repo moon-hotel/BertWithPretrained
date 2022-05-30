@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 import os
 
 
-def read_wiki2(filepath=None,seps='.'):
+def read_wiki2(filepath=None, seps='.'):
     """
     本函数的作用是格式化原始的wikitext-2数据集
     下载地址为：https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-2-v1.zip
@@ -52,7 +52,7 @@ def read_songci(filepath=None, seps='。'):
         if "□" in line or "……" in line or len(line.split('。')) < 2:
             continue
         paragraphs.append([line[0]])
-        line = line.strip() # 去掉换行符和两边的空格
+        line = line.strip()  # 去掉换行符和两边的空格
         for w in line[1:]:
             if paragraphs[-1][-1][-1] in seps:
                 paragraphs[-1].append(w)
@@ -110,8 +110,10 @@ class LoadBertPretrainingDataset(object):
                  data_name='wiki2',
                  masked_rate=0.15,
                  masked_token_rate=0.8,
-                 masked_token_unchanged_rate=0.5):
+                 masked_token_unchanged_rate=0.5,
+                 seps="。"):
         self.tokenizer = tokenizer
+        self.seps = seps
         self.vocab = build_vocab(vocab_path)
         self.PAD_IDX = pad_index
         self.SEP_IDX = self.vocab['[SEP]']
@@ -136,13 +138,13 @@ class LoadBertPretrainingDataset(object):
         :return:  [ [sentence 1, sentence 2, ...], [sentence 1, sentence 2,...],...,[] ]
         """
         if self.data_name == 'wiki2':
-            return read_wiki2(filepath)
+            return read_wiki2(filepath,self.seps)
         elif self.data_name == 'custom':
             return read_custom(filepath)
             # 在这里，可以调用你自己数据对应的格式化函数，
             # 但是返回格式需要同read_wiki2()保持一致。
         elif self.data_name == 'songci':
-            return read_songci(filepath)
+            return read_songci(filepath,self.seps)
         else:
             raise ValueError(f"数据 {self.data_name} 不存在对应的格式化函数，"
                              f"请参考函数 read_wiki(filepath) 实现对应的格式化函数！")
