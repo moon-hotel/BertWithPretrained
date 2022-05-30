@@ -191,9 +191,9 @@ def accuracy(mlm_logits, nsp_logits, mlm_labels, nsp_label, PAD_IDX):
     # 将 [src_len,batch_size,src_vocab_size] 转成 [batch_size, src_len,src_vocab_size]
     mlm_true = mlm_labels.transpose(0, 1).reshape(-1)
     # 将 [src_len,batch_size] 转成 [batch_size， src_len]
-    mlm_acc = mlm_pred.eq(mlm_true)  # 计算预测值与正确值比较的情况
+    mlm_acc = mlm_pred.eq(mlm_true)  # 计算预测值与正确值比较的情况，得到预测正确的个数（此时还包括有mask位置）
     mask = torch.logical_not(mlm_true.eq(PAD_IDX))  # 找到真实标签中，mask位置的信息。 mask位置为FALSE，非mask位置为TRUE
-    mlm_acc = mlm_acc.logical_and(mask)  # 去掉acc中mask的部分
+    mlm_acc = mlm_acc.logical_and(mask)  # 去掉mlm_acc中mask的部分
     mlm_correct = mlm_acc.sum().item()
     mlm_total = mask.sum().item()
     mlm_acc = float(mlm_correct) / mlm_total
