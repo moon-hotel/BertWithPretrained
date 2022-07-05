@@ -265,7 +265,7 @@ class LoadMultipleChoiceDataset(LoadSingleSentenceClassificationDataset):
         self.num_choice = num_choice
 
     @cache
-    def data_process(self, filepath,postfix='cache'):
+    def data_process(self, filepath, postfix='cache'):
         data = pd.read_csv(filepath)
         questions = data['startphrase']
         answers0, answers1 = data['ending0'], data['ending1']
@@ -312,10 +312,14 @@ class LoadMultipleChoiceDataset(LoadSingleSentenceClassificationDataset):
                       get_seq(item[0], item[3]),
                       get_seq(item[0], item[4])]
             # 得到 每个问题组合其中一个答案的 token_type_ids
-            tmp_seg = [torch.tensor(item[5] + item[6], dtype=torch.long),
-                       torch.tensor(item[5] + item[7], dtype=torch.long),
-                       torch.tensor(item[5] + item[8], dtype=torch.long),
-                       torch.tensor(item[5] + item[9], dtype=torch.long)]
+            seg0 = (item[5] + item[6])[:self.max_position_embeddings]
+            seg1 = (item[5] + item[7])[:self.max_position_embeddings]
+            seg2 = (item[5] + item[8])[:self.max_position_embeddings]
+            seg3 = (item[5] + item[9])[:self.max_position_embeddings]
+            tmp_seg = [torch.tensor(seg0, dtype=torch.long),
+                       torch.tensor(seg1, dtype=torch.long),
+                       torch.tensor(seg2, dtype=torch.long),
+                       torch.tensor(seg3, dtype=torch.long)]
             batch_qa.extend(tmp_qa)
             batch_seg.extend(tmp_seg)
             batch_label.append(item[-1])
