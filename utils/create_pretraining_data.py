@@ -138,13 +138,13 @@ class LoadBertPretrainingDataset(object):
         :return:  [ [sentence 1, sentence 2, ...], [sentence 1, sentence 2,...],...,[] ]
         """
         if self.data_name == 'wiki2':
-            return read_wiki2(filepath,self.seps)
+            return read_wiki2(filepath, self.seps)
         elif self.data_name == 'custom':
             return read_custom(filepath)
             # 在这里，可以调用你自己数据对应的格式化函数，
             # 但是返回格式需要同read_wiki2()保持一致。
         elif self.data_name == 'songci':
-            return read_songci(filepath,self.seps)
+            return read_songci(filepath, self.seps)
         else:
             raise ValueError(f"数据 {self.data_name} 不存在对应的格式化函数，"
                              f"请参考函数 read_wiki(filepath) 实现对应的格式化函数！")
@@ -249,13 +249,17 @@ class LoadBertPretrainingDataset(object):
                 token_a_ids = [self.vocab[token] for token in self.tokenizer(sentence)]
                 token_b_ids = [self.vocab[token] for token in self.tokenizer(next_sentence)]
                 token_ids = [self.CLS_IDX] + token_a_ids + [self.SEP_IDX] + token_b_ids
+                seg1 = [0] * (len(token_a_ids) + 2)  # 2 表示[CLS]和中间的[SEP]这两个字符
+                seg2 = [1] * (len(token_b_ids) + 1)
+                segs = seg1 + seg2
                 if len(token_ids) > self.max_position_embeddings - 1:
                     token_ids = token_ids[:self.max_position_embeddings - 1]  # BERT预训练模型只取前512个字符
+                    segs = segs[:self.max_position_embeddings]
                 token_ids += [self.SEP_IDX]
+                assert len(token_ids) <= self.max_position_embeddings
+                assert len(segs) <= self.max_position_embeddings
                 logging.debug(f" ## Mask之前词元结果：{[self.vocab.itos[t] for t in token_ids]}")
-                seg1 = [0] * (len(token_a_ids) + 2)  # 2 表示[CLS]和中间的[SEP]这两个字符
-                seg2 = [1] * (len(token_ids) - len(seg1))
-                segs = torch.tensor(seg1 + seg2, dtype=torch.long)
+                segs = torch.tensor(segs, dtype=torch.long)
                 logging.debug(f" ## Mask之前token ids:{token_ids}")
                 logging.debug(f" ##      segment ids:{segs.tolist()},序列长度为 {len(segs)}")
                 nsp_lable = torch.tensor(int(is_next), dtype=torch.long)
