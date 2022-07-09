@@ -214,7 +214,7 @@ class LoadPairSentenceClassificationDataset(LoadSingleSentenceClassificationData
         pass
 
     @cache
-    def data_process(self, filepath,postfix='cache'):
+    def data_process(self, filepath, postfix='cache'):
         """
         将每一句话中的每一个词根据字典转换成索引的形式，同时返回所有样本中最长样本的长度
         :param filepath: 数据集路径
@@ -904,3 +904,65 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
             f.write(json.dumps(best_results, indent=4) + '\n')
         with open(os.path.join(output_dir, f"best_n_result.json"), 'w') as f:
             f.write(json.dumps(all_n_best_results, indent=4) + '\n')
+
+
+class LoadChineseNERDataset(LoadSingleSentenceClassificationDataset):
+    def __init__(self, entities=None, num_labels=None, **kwargs):
+        super(LoadChineseNERDataset, self).__init__(**kwargs)
+        self.entities = entities
+        self.num_labels = num_labels
+        if self.entities is None or self.num_labels is None:
+            raise ValueError(f"类 {self.__class__.__name__} 中参数 entities 或 num_labels 不能为空！")
+
+    @cache
+    def data_process(self, filepath, postfix='cache'):
+        raw_iter = open(filepath, encoding="utf8").readlines()
+        data = []
+        max_len = 0
+        tmp_token_ids = []
+        tmp_sentence = ""
+        tmp_label = []
+        for raw in tqdm(raw_iter, ncols=80):
+            line = raw.rstrip("\n").split(self.split_sep)
+            if len(line) != 1 and len(line) != 2:
+                raise ValueError(f"数据标注有误{line}")
+            if len(line) == 1:
+                if len(tmp_token_ids) > self.max_position_embeddings - 2:
+                    tmp_token_ids = tmp_token_ids[:self.max_position_embeddings - 2]
+                    tmp_label = tmp_label[:self.max_position_embeddings - 2]
+                max_len = max(max_len, len(tmp_label) + 2)
+                token_ids = torch.tensor([self.CLS_IDX] + tmp_token_ids +
+                                         [self.SEP_IDX], dtype=torch.long)
+                labels = torch.tensor([self.CLS_IDX] + tmp_label +
+                                      [self.SEP_IDX], dtype=torch.long)
+                data.append([tmp_sentence, token_ids, labels])
+
+                logging.debug(" ### 样本构造结果为：")
+                logging.debug(f" ## {tmp_sentence}")
+                logging.debug(f" ## {token_ids.tolist()}")
+                logging.debug(f" ## {labels.tolist()}")
+                assert len(tmp_token_ids) == len(tmp_label)
+                tmp_token_ids = []
+                tmp_sentence = ""
+                tmp_label = []
+                continue
+            tmp_sentence += line[0]
+            tmp_token_ids.append(self.vocab[line[0]])
+            tmp_label.append(self.entities[line[-1]])
+        return data, max_len
+
+    def generate_batch(self, data_batch):
+        batch_sentence, batch_token_ids, batch_label = [], [], []
+        for (sen, token_ids, label) in data_batch:  # 开始对一个batch中的每一个样本进行处理。
+            batch_sentence.append(sen)
+            batch_token_ids.append(token_ids)
+            batch_label.append(label)
+        batch_token_ids = pad_sequence(batch_token_ids,  # [batch_size,max_len]
+                                       padding_value=self.PAD_IDX,
+                                       batch_first=False,
+                                       max_len=self.max_sen_len)
+        batch_label = pad_sequence(batch_label,  # [batch_size,max_len]
+                                   padding_value=self.PAD_IDX,
+                                   batch_first=False,
+                                   max_len=self.max_sen_len)
+        return batch_sentence, batch_token_ids, batch_label

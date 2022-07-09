@@ -19,6 +19,7 @@ class ModelConfig:
         # self.val_file_path = os.path.join(self.dataset_dir, 'wiki.valid.tokens')
         # self.test_file_path = os.path.join(self.dataset_dir, 'wiki.test.tokens')
         # self.data_name = 'wiki2'
+        # self.seps = "."
 
         # ========== songci 数据集相关配置
         self.dataset_dir = os.path.join(self.project_dir, 'data', 'SongCi')
@@ -27,6 +28,7 @@ class ModelConfig:
         self.val_file_path = os.path.join(self.dataset_dir, 'songci.valid.txt')
         self.test_file_path = os.path.join(self.dataset_dir, 'songci.test.txt')
         self.data_name = 'songci'
+        self.seps = "。"
 
         self.vocab_path = os.path.join(self.pretrained_model_dir, 'vocab.txt')
         self.model_save_dir = os.path.join(self.project_dir, 'cache')
@@ -67,7 +69,8 @@ if __name__ == '__main__':
                                              data_name=model_config.data_name,
                                              masked_rate=model_config.masked_rate,
                                              masked_token_rate=model_config.masked_token_rate,
-                                             masked_token_unchanged_rate=model_config.masked_token_unchanged_rate)
+                                             masked_token_unchanged_rate=model_config.masked_token_unchanged_rate,
+                                             seps=model_config.seps)
 
     # train_iter, test_iter, val_iter = data_loader.load_train_val_test_data(
     #     test_file_path=model_config.test_file_path,
@@ -81,10 +84,17 @@ if __name__ == '__main__':
         print(b_mask.shape)  # [batch_size,src_len]
         print(b_mlm_label.shape)  # [src_len,batch_size]
         print(b_nsp_label.shape)  # [batch_size]
+        token_ids = b_token_ids.transpose(0, 1)[4]
+        mlm_label = b_mlm_label.transpose(0, 1)[4]
+        token = " ".join([data_loader.vocab.itos[t] for t in token_ids])
+        label = " ".join([data_loader.vocab.itos[t] for t in mlm_label])
+        print(token)
+        print(label)
+
         break
 
     sentences = ["十年生死两茫茫。不思量。自难忘。千里孤坟，无处话凄凉。",
-                   "红酥手。黄藤酒。满园春色宫墙柳。"]
+                 "红酥手。黄藤酒。满园春色宫墙柳。"]
     token_ids, pred_idx, mask = data_loader.make_inference_samples(sentences,
                                                                    masked=False,
                                                                    language='zh',
