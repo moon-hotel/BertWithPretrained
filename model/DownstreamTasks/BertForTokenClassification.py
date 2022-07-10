@@ -1,6 +1,5 @@
 from ..BasicBert.Bert import BertModel
 import torch.nn as nn
-import torch
 
 
 class BertForTokenClassification(nn.Module):
@@ -21,6 +20,14 @@ class BertForTokenClassification(nn.Module):
                 token_type_ids=None,
                 position_ids=None,
                 labels=None):
+        """
+        :param input_ids: [src_len,batch_size]
+        :param attention_mask: [batch_size, src_len]
+        :param token_type_ids:
+        :param position_ids:
+        :param labels: [src_len,batch_size]
+        :return:
+        """
 
         _, all_encoder_outputs = self.bert(input_ids=input_ids,
                                            attention_mask=attention_mask,
@@ -31,8 +38,8 @@ class BertForTokenClassification(nn.Module):
         sequence_output = self.dropout(sequence_output)
         logits = self.classifier(sequence_output)
         # logit: [src_len, batch_size, num_labels]
-        if labels is not None:
-            loss_fct = nn.CrossEntropyLoss(ignore_index=self.config.pad_token_id)
+        if labels is not None:  # [src_len,batch_size]
+            loss_fct = nn.CrossEntropyLoss(ignore_index=self.config.ignore_idx)
             loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
             return loss, logits
         else:
