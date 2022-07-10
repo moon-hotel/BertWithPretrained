@@ -907,10 +907,11 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
 
 
 class LoadChineseNERDataset(LoadSingleSentenceClassificationDataset):
-    def __init__(self, entities=None, num_labels=None, **kwargs):
+    def __init__(self, entities=None, num_labels=None, ignore_idx=-100, **kwargs):
         super(LoadChineseNERDataset, self).__init__(**kwargs)
         self.entities = entities
         self.num_labels = num_labels
+        self.IGNORE_IDX = ignore_idx
         if self.entities is None or self.num_labels is None:
             raise ValueError(f"类 {self.__class__.__name__} 中参数 entities 或 num_labels 不能为空！")
 
@@ -933,8 +934,8 @@ class LoadChineseNERDataset(LoadSingleSentenceClassificationDataset):
                 max_len = max(max_len, len(tmp_label) + 2)
                 token_ids = torch.tensor([self.CLS_IDX] + tmp_token_ids +
                                          [self.SEP_IDX], dtype=torch.long)
-                labels = torch.tensor([self.CLS_IDX] + tmp_label +
-                                      [self.SEP_IDX], dtype=torch.long)
+                labels = torch.tensor([self.IGNORE_IDX] + tmp_label +
+                                      [self.IGNORE_IDX], dtype=torch.long)
                 data.append([tmp_sentence, token_ids, labels])
 
                 logging.debug(" ### 样本构造结果为：")
@@ -962,7 +963,10 @@ class LoadChineseNERDataset(LoadSingleSentenceClassificationDataset):
                                        batch_first=False,
                                        max_len=self.max_sen_len)
         batch_label = pad_sequence(batch_label,  # [batch_size,max_len]
-                                   padding_value=self.PAD_IDX,
+                                   padding_value=self.IGNORE_IDX,
                                    batch_first=False,
                                    max_len=self.max_sen_len)
+        # ① 因为label的长度各不相同，所以同一个batch中的label需要padding到相同的长度；
+        # ② 因为进行了padding操作，所以在计算损失的时候需要把padding部分的损失忽略掉；
+        # ③ 又因为label中有0这个类别的存在，所以不能用词表中的PAD_IDX进行padding（PAD_IDX为0），所以要另外取一个IGNORE_IDX
         return batch_sentence, batch_token_ids, batch_label
