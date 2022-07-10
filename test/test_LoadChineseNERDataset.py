@@ -30,6 +30,7 @@ class ModelConfig:
         self.model_val_per_epoch = 2
         self.entities = {'O': 0, 'B-ORG': 1, 'B-LOC': 2, 'B-PER': 3, 'I-ORG': 4, 'I-LOC': 5, 'I-PER': 6}
         self.num_labels = len(self.entities)
+        self.ignore_idx = -100
         logger_init(log_file_name='ner', log_level=logging.DEBUG,
                     log_dir=self.logs_save_dir)
         if not os.path.exists(self.model_save_dir):
@@ -44,7 +45,6 @@ class ModelConfig:
         logging.info(" ### 将当前配置打印到日志文件中 ")
         for key, value in self.__dict__.items():
             logging.info(f"###  {key} = {value}")
-        self.__dict__["pad_token_id"] = -1
 
 
 if __name__ == '__main__':
@@ -52,6 +52,7 @@ if __name__ == '__main__':
     data_loader = LoadChineseNERDataset(
         entities=model_config.entities,
         num_labels=model_config.num_labels,
+        ignore_idx=model_config.ignore_idx,
         vocab_path=model_config.vocab_path,
         tokenizer=BertTokenizer.from_pretrained(
             model_config.pretrained_model_dir).tokenize,
@@ -67,8 +68,38 @@ if __name__ == '__main__':
                                                      only_test=True)
     for sen, token_ids, labels in test_iter:
         print(sen)
-        print(token_ids.shape)
+        # ['我们变而以书会友，以书结缘，把欧美、港台流行的食品类图谱、画册、工具书汇集一堂。',
+        # '为了跟踪国际最新食品工艺、流行趋势，大量搜集海外专业书刊资料是提高技艺的捷径。', ...']
+
+        print("Input Token:\n", token_ids.shape)
+        # tensor([[ 101, 2769,  812, 1359, 5445,  809,  741,  833, 1351, 8024,  809,  741,
+        #          5310, 5357, 8024, 2828, 3616, 5401,  510, 3949, 1378, 3837, 6121, 4638,
+        #          7608, 1501, 5102, 1745, 6480,  510, 4514, 1085,  510, 2339, 1072,  741,
+        #          3726, 7415,  671, 1828,  511,  102,    0,    0,    0],
+        #         [ 101,  711,  749, 6656, 6679, 1744, 7354, 3297, 3173, 7608, 1501, 2339,
+        #          5686,  510, 3837, 6121, 6633, 1232, 8024, 1920, 7030, 3017, 7415, 3862,
+        #          1912,  683,  689,  741, 1149, 6598, 3160, 3221, 2990, 7770, 2825, 5686,
+        #          4638, 2949, 2520,  511,  102,    0,    0,    0,    0],....]
         print(token_ids.transpose(0, 1))
-        print(labels.shape)
+        print("Attention Mask（Padding Mask): \n", (token_ids == model_config.pad_token_id).transpose(0, 1))
+        # tensor([[False, False, False, False, False, False, False, False, False, False,
+        #          False, False, False, False, False, False, False, False, False, False,
+        #          False, False, False, False, False, False, False, False, False, False,
+        #          False, False, False, False, False, False, False, False, False, False,
+        #          False, False,  True,  True,  True],
+        #         [False, False, False, False, False, False, False, False, False, False,
+        #          False, False, False, False, False, False, False, False, False, False,
+        #          False, False, False, False, False, False, False, False, False, False,
+        #          False, False, False, False, False, False, False, False, False, False,
+        #          False,  True,  True,  True,  True],....]
+        print("Labels:\n", labels.shape)  # [src_len,batch_size]
         print(labels.transpose(0, 1))
+        # tensor([[-100,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
+        #             0,    0,    0,    0,    2,    2,    0,    2,    2,    0,    0,    0,
+        #             0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
+        #             0,    0,    0,    0,    0, -100, -100, -100, -100],
+        #         [-100,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
+        #             0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
+        #             0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
+        #             0,    0,    0,    0, -100, -100, -100, -100, -100],....]
         break
