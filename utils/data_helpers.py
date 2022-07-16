@@ -923,6 +923,7 @@ class LoadChineseNERDataset(LoadSingleSentenceClassificationDataset):
         tmp_token_ids = []
         tmp_sentence = ""
         tmp_label = []
+        tmp_entity = []
         for raw in tqdm(raw_iter, ncols=80):
             line = raw.rstrip("\n").split(self.split_sep)
             if len(line) != 1 and len(line) != 2:
@@ -939,17 +940,21 @@ class LoadChineseNERDataset(LoadSingleSentenceClassificationDataset):
                 data.append([tmp_sentence, token_ids, labels])
 
                 logging.debug(" ### 样本构造结果为：")
-                logging.debug(f" ## {tmp_sentence}")
-                logging.debug(f" ## {token_ids.tolist()}")
-                logging.debug(f" ## {labels.tolist()}")
+                logging.debug(f"   ## 句子: {tmp_sentence}")
+                logging.debug(f"   ## 实体: {tmp_entity}")
+                logging.debug(f"   ## input_ids: {token_ids.tolist()}")
+                logging.debug(f"   ## label: {labels.tolist()}")
+                logging.debug(f" ================================\n")
                 assert len(tmp_token_ids) == len(tmp_label)
                 tmp_token_ids = []
                 tmp_sentence = ""
                 tmp_label = []
+                tmp_entity = []
                 continue
             tmp_sentence += line[0]
             tmp_token_ids.append(self.vocab[line[0]])
             tmp_label.append(self.entities[line[-1]])
+            tmp_entity.append(line[-1])
         return data, max_len
 
     def generate_batch(self, data_batch):
