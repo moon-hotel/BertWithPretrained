@@ -8,6 +8,7 @@ from model import BertForTokenClassification
 from utils import LoadChineseNERDataset
 from utils import logger_init
 from torch.utils.tensorboard import SummaryWriter
+from sklearn.metrics import accuracy_score, classification_report
 import logging
 import os
 import torch
@@ -30,7 +31,7 @@ class ModelConfig:
         self.logs_save_dir = os.path.join(self.project_dir, 'logs')
         self.split_sep = ' '
         self.is_sample_shuffle = True
-        self.batch_size = 5
+        self.batch_size = 128
         self.max_sen_len = None
         self.epochs = 10
         self.learning_rate = 1e-5
@@ -68,16 +69,15 @@ def accuracy(logits, y_true, ignore_idx=-100):
     logits = logits.transpose(0, 1)
     print(accuracy(logits, y_true, -100)) # (0.8, 4, 5)
     """
-    y_pred = logits.transpose(0, 1).argmax(axis=2).reshape(-1)
+    y_pred = logits.transpose(0, 1).argmax(axis=2).reshape(-1).tolist()
     # 将 [src_len,batch_size,num_labels] 转成 [batch_size, src_len,num_labels]
-    y_true = y_true.transpose(0, 1).reshape(-1)
-    # 将 [src_len,batch_size] 转成 [batch_size， src_len]
-    acc = y_pred.eq(y_true)  # 计算预测值与正确值比较的情况
-    mask = torch.logical_not(y_true.eq(ignore_idx))  # 找到真实标签中，mask位置的信息。 mask位置为FALSE，非mask位置为TRUE
-    acc = acc.logical_and(mask)  # 去掉acc中mask的部分
-    correct = acc.sum().item()
-    total = mask.sum().item()
-    return float(correct) / total, correct, total
+    y_true = y_true.transpose(0, 1).reshape(-1).tolist()
+    real_pred, real_true = [], []
+    for item in zip(y_pred, y_true):
+        if item[1] != ignore_idx:
+            real_pred.append(item[0])
+            real_true.append(item[1])
+    return accuracy_score(real_true, real_pred), real_true, real_pred
 
 
 def train(config):
@@ -143,6 +143,8 @@ def train(config):
                              f"Train loss :{loss.item():.3f}, Train acc: {round(acc, 5)}")
                 config.writer.add_scalar('Training/Loss', loss.item(), global_steps)
                 config.writer.add_scalar('Training/Acc', acc, global_steps)
+            if idx % 100 == 0:
+                show_result(sen[:10], logits[:, :10], token_ids[:, :10], config.entities)
         end_time = time.time()
         train_loss = losses / len(train_iter)
         logging.info(f"Epoch: {epoch}, Train loss: {train_loss:.3f}, Epoch time = {(end_time - start_time):.3f}s")
@@ -155,12 +157,12 @@ def train(config):
                 state_dict = deepcopy(model.state_dict())
                 torch.save({'last_epoch': global_steps,
                             'model_state_dict': state_dict},
-                           config.model_save_path)
+                           model_save_path)
 
 
 def evaluate(config, val_iter, model, data_loader):
     model.eval()
-    correct, totals = 0, 0
+    real_true, real_pred = [], []
     show = True
     with torch.no_grad():
         for idx, (sen, token_ids, labels) in enumerate(val_iter):
@@ -176,12 +178,13 @@ def evaluate(config, val_iter, model, data_loader):
             if show:
                 show_result(sen[:10], logits[:, :10], token_ids[:, :10], config.entities)
                 show = False
-
-            _, c, t = accuracy(logits, labels, config.ignore_idx)
-            correct += c
-            totals += t
+            _, t, p = accuracy(logits, labels, config.ignore_idx)
+            real_true += t
+            real_pred += p
     model.train()
-    return float(correct) / totals
+    target_names = list(config.entities.keys())
+    logging.info(f"\n{classification_report(real_true, real_pred, target_names=target_names)}")
+    return accuracy_score(real_true, real_pred)
 
 
 def get_ner_tags(logits, token_ids, entities, SEP_IDX=102):
@@ -201,7 +204,7 @@ def get_ner_tags(logits, token_ids, entities, SEP_IDX=102):
     for sample in zip(y_pred, token_ids, prob):
         tmp_label, tmp_prob = [], []
         for item in zip(*sample):
-            if item[1] == SEP_IDX:
+            if item[1] == SEP_IDX:  # 忽略最后一个[SEP]字符
                 break
             tmp_label.append(label_list[item[0]])
             tmp_prob.append(item[2].item())

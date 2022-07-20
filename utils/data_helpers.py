@@ -928,7 +928,7 @@ class LoadChineseNERDataset(LoadSingleSentenceClassificationDataset):
             line = raw.rstrip("\n").split(self.split_sep)
             if len(line) != 1 and len(line) != 2:
                 raise ValueError(f"数据标注有误{line}")
-            if len(line) == 1:
+            if len(line) == 1:  # 表示得到一个完整的token id样本
                 if len(tmp_token_ids) > self.max_position_embeddings - 2:
                     tmp_token_ids = tmp_token_ids[:self.max_position_embeddings - 2]
                     tmp_label = tmp_label[:self.max_position_embeddings - 2]
