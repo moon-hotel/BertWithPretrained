@@ -85,8 +85,11 @@ def train(config):
                                        config.pretrained_model_dir)
     model_save_path = os.path.join(config.model_save_dir,
                                    config.model_save_name)
+    global_steps = 0
     if os.path.exists(model_save_path):
-        loaded_paras = torch.load(model_save_path)
+        checkpoint = torch.load(model_save_path)
+        global_steps = checkpoint['last_epoch']
+        loaded_paras = checkpoint['model_state_dict']
         model.load_state_dict(loaded_paras)
         logging.info("## 成功载入已有模型，进行追加训练......")
 
@@ -108,17 +111,11 @@ def train(config):
                                              val_file_path=config.val_file_path,
                                              test_file_path=config.test_file_path,
                                              only_test=False)
-    # train_iter = \
-    #     data_loader.load_train_val_test_data(train_file_path=config.train_file_path,
-    #                                          val_file_path=config.val_file_path,
-    #                                          test_file_path=config.test_file_path,
-    #                                          only_test=True)
     model = model.to(config.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
 
     model.train()
     max_acc = 0
-    global_steps = 0
     for epoch in range(config.epochs):
         losses = 0
         start_time = time.time()
@@ -192,6 +189,15 @@ def get_ner_tags(logits, token_ids, entities, SEP_IDX=102):
     :param logits:  [src_len,batch_size,num_samples]
     :param token_ids: # [src_len,batch_size]
     :return:
+    e.g.
+    logits = torch.tensor([[[0.4, 0.7, 0.2],[0.5, 0.4, 0.1],[0.1, 0.2, 0.3],[0.5, 0.7, 0.2],[0.1, 0.2, 0.5]],
+                       [[0.3, 0.2, 0.5],[0.7, 0.8, 0.4],[0.1, 0.1, 0.3],[0.9, 0.2, 0.1],[0.1, 0.5,0.2]]])
+    logits = logits.transpose(0, 1)  # [src_len,batch_size,num_samples]
+    token_ids = torch.tensor([[101, 2769, 511, 102, 0],
+                              [101, 56, 33, 22, 102]]).transpose(0, 1)  # [src_len,batch_size]
+    labels, probs = get_ner_tags(logits, token_ids, entities)
+    [['O', 'B-LOC'], ['B-ORG', 'B-LOC', 'O']]
+    [[0.5, 0.30000001192092896], [0.800000011920929, 0.30000001192092896, 0.8999999761581421]]
     """
     # entities = {'O': 0, 'B-ORG': 1, 'B-LOC': 2, 'B-PER': 3, 'I-ORG': 4, 'I-LOC': 5, 'I-PER': 6}
     label_list = list(entities.keys())
