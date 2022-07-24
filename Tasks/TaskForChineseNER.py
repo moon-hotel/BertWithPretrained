@@ -31,7 +31,7 @@ class ModelConfig:
         self.logs_save_dir = os.path.join(self.project_dir, 'logs')
         self.split_sep = ' '
         self.is_sample_shuffle = True
-        self.batch_size = 128
+        self.batch_size = 12
         self.max_sen_len = None
         self.epochs = 10
         self.learning_rate = 1e-5
@@ -144,7 +144,8 @@ def train(config):
                 show_result(sen[:10], logits[:, :10], token_ids[:, :10], config.entities)
         end_time = time.time()
         train_loss = losses / len(train_iter)
-        logging.info(f"Epoch: {epoch}, Train loss: {train_loss:.3f}, Epoch time = {(end_time - start_time):.3f}s")
+        logging.info(f"Epoch: [{epoch + 1}/{config.epochs}],"
+                     f" Train loss: {train_loss:.3f}, Epoch time = {(end_time - start_time):.3f}s")
         if (epoch + 1) % config.model_val_per_epoch == 0:
             acc = evaluate(config, val_iter, model, data_loader)
             logging.info(f"Accuracy on val {acc:.3f}")
@@ -269,6 +270,44 @@ def show_result(sentences, logits, token_ids, entities):
     pretty_print(sentences, labels, entities)
 
 
+def inference(config, sentences=None):
+    model = BertForTokenClassification(config,
+                                       config.pretrained_model_dir)
+    model_save_path = os.path.join(config.model_save_dir,
+                                   config.model_save_name)
+    if os.path.exists(model_save_path):
+        checkpoint = torch.load(model_save_path)
+        loaded_paras = checkpoint['model_state_dict']
+        model.load_state_dict(loaded_paras)
+        logging.info("## 成功载入已有模型，进行追加训练......")
+    else:
+        raise ValueError(f" 本地模型{model_save_path}不存在，请先训练模型。")
+    model = model.to(config.device)
+    data_loader = LoadChineseNERDataset(
+        entities=config.entities,
+        num_labels=config.num_labels,
+        ignore_idx=config.ignore_idx,
+        vocab_path=config.vocab_path,
+        tokenizer=BertTokenizer.from_pretrained(
+            config.pretrained_model_dir).tokenize,
+        batch_size=config.batch_size,
+        max_sen_len=config.max_sen_len,
+        split_sep=config.split_sep,
+        max_position_embeddings=config.max_position_embeddings,
+        pad_index=config.pad_token_id,
+        is_sample_shuffle=config.is_sample_shuffle)
+    _, token_ids, _ = data_loader.make_inference_samples(sentences)
+    token_ids = token_ids.to(config.device)
+    padding_mask = (token_ids == data_loader.PAD_IDX).transpose(0, 1)
+    logits = model(input_ids=token_ids,  # [src_len, batch_size]
+                   attention_mask=padding_mask)  # [batch_size,src_len]
+    show_result(sentences, logits, token_ids, config.entities)
+
+
 if __name__ == '__main__':
     config = ModelConfig()
     train(config)
+    sentences = ['智光拿出石壁拓文为乔峰详述事情始末，乔峰方知自己原本姓萧，乃契丹后族。',
+                 '当乔峰问及带头大哥时，却发现智光大师已圆寂。',
+                 '乔峰、阿朱相约找最后知情人康敏问完此事后，就到塞外骑马牧羊，再不回来。']
+    inference(config, sentences)
