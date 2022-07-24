@@ -103,3 +103,11 @@ if __name__ == '__main__':
         #             0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
         #             0,    0,    0,    0, -100, -100, -100, -100, -100],....]
         break
+
+    sentences = ['智光拿出石壁拓文为乔峰详述事情始末，乔峰方知自己原本姓萧，乃契丹后族。',
+                 '当乔峰问及带头大哥时，却发现智光大师已圆寂。',
+                 '乔峰、阿朱相约找最后知情人康敏问完此事后，就到塞外骑马牧羊，再不回来。']
+    batch_sentence, batch_token_ids, _ = data_loader.make_inference_samples(sentences)
+    print("============")
+    print(batch_sentence)
+    print(batch_token_ids)
