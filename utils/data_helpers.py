@@ -975,3 +975,15 @@ class LoadChineseNERDataset(LoadSingleSentenceClassificationDataset):
         # ② 因为进行了padding操作，所以在计算损失的时候需要把padding部分的损失忽略掉；
         # ③ 又因为label中有0这个类别的存在，所以不能用词表中的PAD_IDX进行padding（PAD_IDX为0），所以要另外取一个IGNORE_IDX
         return batch_sentence, batch_token_ids, batch_label
+
+    def make_inference_samples(self, sentences):
+        if not isinstance(sentences, list):
+            sentences = [sentences]
+        data = []
+        for sen in sentences:
+            tokens = [self.vocab[word] for word in sen]
+            label = [-1] * len(tokens)
+            token_ids = torch.tensor([self.CLS_IDX] + tokens + [self.SEP_IDX], dtype=torch.long)
+            labels = torch.tensor([self.IGNORE_IDX] + label + [self.IGNORE_IDX], dtype=torch.long)
+            data.append([sen, token_ids, labels])
+        return self.generate_batch(data)
