@@ -6,6 +6,13 @@
 在学习使用本项目之前需要清楚Transformer的相关原理，更多关于Transformer内容的介绍可以参考文章[ This post is all you need（上卷）——层层剥开Transformer](https://mp.weixin.qq.com/s/uch_AGcSB8OSAeVu2sme8A) ，近4万余字、50张图、3个实战示例（[翻译](https://github.com/moon-hotel/TransformerTranslation) 、[分类](https://github.com/moon-hotel/TransformerClassification) 、[对联生成](https://github.com/moon-hotel/TransformerCouplet) ），带你一网打尽Transformer！
 
 经过几个月磨磨蹭蹭地梳理，掌柜总算是把整个BERT模型的基本原理、代码实现以及原论文中所提到的4个微调任务场景都给详细地介绍了一遍。完整PDF点击此处[ This post is all you need（下卷）——步步走进BERT模型](https://mp.weixin.qq.com/s/cBrP5XhuUIL4BOdjyEMrHg) 获取！
+
+<img src="imgs/banner.jpg" width="90%">
+
+### [坚持的力量！《跟我一起学机器学习》上市了! 送礼65份！](https://mp.weixin.qq.com/s/p0cAZsVqX-rV7KBY9h0VmQ)
+
+### 购买链接：[当当网](http://product.dangdang.com/29447673.html) &nbsp; [京东](https://item.jd.com/13335981.html)
+
  ## 模型详细解析
 - [x] [1. BERT原理与NSL和MLM](https://www.ylkz.life/deeplearning/p10631450/) <br>
 - [x] [2. 从零实现BERT网络模型](https://www.ylkz.life/deeplearning/p10602241/) 　　　[代码](model/BasicBert)
@@ -14,8 +21,7 @@
 - [x] [5. 基于BERT预训练模型的英文多选项(SWAG)任务](https://mp.weixin.qq.com/s/GqsbMBNt9XcFIjmumR04Pg) 　　　[代码](Tasks/TaskForMultipleChoice.py)
 - [x] [6. 基于BERT预训练模型的英文问答(SQuAD)任务](https://www.ylkz.life/deeplearning/p10265968/) 　　　[代码](Tasks/TaskForSQuADQuestionAnswering.py)
 - [x] [7. 基于NSL和MLM任务从头训练BERT任务](https://mp.weixin.qq.com/s/2Vtxv1Wj9knEFKUyUeQ_6w) 　　　[代码](Tasks/TaskForPretraining.py)
-- [ ] [8. 基于BERT预训练模型的命名体识别任务](https://www.ylkz.life)
-- [ ] [9. 基于BERT预训练模型的中文关系抽取任务](https://www.ylkz.life)
+- [x] [8. 基于BERT预训练模型的命名体识别任务](https://mp.weixin.qq.com/s/bbeN95mlLaE05dFndUAxgA)
 
 ## 工程结构
 - `bert_base_chinese`目录中是BERT base中文预训练模型以及配置文件
@@ -33,6 +39,7 @@
     - `SQuAD`是斯坦福大学开源的问答数据集1.1版本
     - `WikiText`是维基百科英文语料用于模型预训练
     - `SongCi`是宋词语料用于中文模型预训练
+    - `ChineseNER`是用于训练中文命名体识别的数据集
 - `model`目录中是各个模块的实现
     - `BasicBert`中是基础的BERT模型实现模块
         - `MyTransformer.py`是自注意力机制实现部分；
