@@ -14,8 +14,7 @@
 - [x] [5. 基于BERT预训练模型的英文多选项(SWAG)任务](https://mp.weixin.qq.com/s/GqsbMBNt9XcFIjmumR04Pg) 　　　[代码](Tasks/TaskForMultipleChoice.py)
 - [x] [6. 基于BERT预训练模型的英文问答(SQuAD)任务](https://www.ylkz.life/deeplearning/p10265968/) 　　　[代码](Tasks/TaskForSQuADQuestionAnswering.py)
 - [x] [7. 基于NSL和MLM任务从头训练BERT任务](https://mp.weixin.qq.com/s/2Vtxv1Wj9knEFKUyUeQ_6w) 　　　[代码](Tasks/TaskForPretraining.py)
-- [ ] [8. 基于BERT预训练模型的命名体识别任务](https://www.ylkz.life)
-- [ ] [9. 基于BERT预训练模型的中文关系抽取任务](https://www.ylkz.life)
+- [x] [8. 基于BERT预训练模型的命名体识别任务](https://mp.weixin.qq.com/s/bbeN95mlLaE05dFndUAxgA)
 
 ## 工程结构
 - `bert_base_chinese`目录中是BERT base中文预训练模型以及配置文件
@@ -33,6 +32,7 @@
     - `SQuAD`是斯坦福大学开源的问答数据集1.1版本
     - `WikiText`是维基百科英文语料用于模型预训练
     - `SongCi`是宋词语料用于中文模型预训练
+    - `ChineseNER`是用于训练中文命名体识别的数据集
 - `model`目录中是各个模块的实现
     - `BasicBert`中是基础的BERT模型实现模块
         - `MyTransformer.py`是自注意力机制实现部分；
