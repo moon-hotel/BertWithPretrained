@@ -164,7 +164,10 @@ class LoadBertPretrainingDataset(object):
             # 这里random.choice的作用是从一个list中随机选出一个元素
             # ①先从所有段落中随机出一个段落；
             # ②再从随机出的一个段落中随机出一句话；
-            next_sentence = random.choice(random.choice(paragraphs))
+            new_next_sentence = next_sentence
+            while next_sentence == new_next_sentence: # 防止随机选择的下一个句子仍旧与之前的相同（尽管概率非常小）
+                new_next_sentence = random.choice(random.choice(paragraphs))
+            next_sentence = new_next_sentence
             is_next = False
         return sentence, next_sentence, is_next
 
