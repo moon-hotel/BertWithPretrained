@@ -2,61 +2,74 @@
 
 \[[中文](README-zh-CN.md)|[English](README.md)\]
 
-This project is an implementation of the BERT model and its related downstream tasks based on the PyTorch framework. It also includes a detailed explanation of the BERT model and the principles of each underlying task.
+本项目是一个基于PyTorch从零实现的BERT模型及相关下游任务示例的代码仓库，同时也包含了BERT模型以及每个下有任务原理的详细讲解。
 
 [BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding](https://arxiv.org/abs/1810.04805)
 
-Before learning to use this project, you need to know the relevant principles of Transformer by these three examples: [Translation](https://github.com/moon-hotel/TransformerTranslation), [Classification](https://github.com/moon-hotel/TransformerClassification), [Coupling Generation](https://github.com/moon-hotel/TransformerCouplet).
+在学习使用本项目之前需要清楚Transformer的相关原理，更多关于Transformer内容的介绍可以参考文章[ This post is all you need（上卷）——层层剥开Transformer](https://mp.weixin.qq.com/s/uch_AGcSB8OSAeVu2sme8A) ，近4万余字、50张图、3个实战示例（[翻译](https://github.com/moon-hotel/TransformerTranslation) 、[分类](https://github.com/moon-hotel/TransformerClassification) 、[对联生成](https://github.com/moon-hotel/TransformerCouplet) ），带你一网打尽Transformer！
 
+经过几个月磨磨蹭蹭地梳理，掌柜总算是把整个BERT模型的基本原理、代码实现以及原论文中所提到的5个微调任务场景都给详细地介绍了一遍，总计近8万字。完整PDF点击此处[ This post is all you need（下卷）——步步走进BERT模型](https://mp.weixin.qq.com/s/cBrP5XhuUIL4BOdjyEMrHg) 获取！
 
- ## Implementations
-- [x] [1. Implementing the BERT model from scratch](model/BasicBert)
-- [x] [2. Chinese text classification task based on BERT pretraining model](Tasks/TaskForSingleSentenceClassification.py)
-- [x] [3. English text implication (MNLI) task based on BERT pretrained model](Tasks/TaskForPairSentenceClassification.py)
-- [x] [4. English Multiple Choice (SWAG) task based on BERT pretrained model](Tasks/TaskForMultipleChoice.py)
-- [x] [5. English Question Answering (SQuAD) Task Based on BERT pretrained Model ](Tasks/TaskForSQuADQuestionAnswering.py)
-- [x] [6. Training BERT tasks from scratch based on NSL and MLM tasks](Tasks/TaskForPretraining.py)
-- [x] [7. Named Entity Recognition task based on BERT pretraining model](Tasks/TaskForChineseNER.py)
+<img src="imgs/banner.jpg" width="90%">
 
-## Project Structure
-- `bert_base_chinese`contains the [bert_base_chinese](https://huggingface.co/bert-base-chinese/tree/main) pre-training model and configuration files
+### [坚持的力量！《跟我一起学机器学习》上市了! 送礼65份！](https://mp.weixin.qq.com/s/p0cAZsVqX-rV7KBY9h0VmQ)
 
-- `bert_base_uncased_english`contains the [bert_base_uncased_english](https://huggingface.co/bert-base-uncased/tree/main) pre-training model and configuration files
-- `data`contains all datasets used by each downstream task.
-    - `SingleSentenceClassification` is a 15-classes Chinese classification dataset of Toutiao.
-    - `PairSentenceClassification` is the dataset of MNLI (The Multi-Genre Natural Language Inference Corpus).
-    - `MultipeChoice` is the dataset of SWAG.
-    - `SQuAD` is the dataset of SQuAD-V1.1.
-    - `WikiText`is the Wikipedia English corpus for pre-training.
-    - `SongCi` is SongCi data for Chinese model pre-training
-    - `ChineseNER` is a dataset used to train Chinese Named Entity Recognition.
-- `model` is the implementation of each module
-    - `BasicBert` contains basic BERT implementation
-        - `MyTransformer.py` self-attention implementation.
-        - `BertEmbedding.py` Input Embedding implementation.
-        - `BertConfig.py` used to import configuration of `config.json`.
-        - `Bert.py` implementation of bert.
-    - `DownstreamTasks` contains all downstream tasks implementation
-        - `BertForSentenceClassification.py` sentence(s) classification implementation.
-        - `BertForMultipleChoice.py` multiple choice implementation.
-        - `BertForQuestionAnswering.py` question answer (text span) implementation.
-        - `BertForNSPAndMLM.py` NSP and MLM implementation.
-        - `BertForTokenClassification.py` token classification implementation.
-- `Task` implementation of training and inference for each downstream task
-    - `TaskForSingleSentenceClassification.py` taks of single sentence classification implementation such as sentence classification.
-    - `TaskForPairSentence.py`  task of pair sentence classification implementation such as MNLI.
-    - `TaskForMultipleChoice.py` task of multiple choice implementation such as SWAG.
-    - `TaskForSQuADQuestionAnswering.py` task os question answering (text span) implementation such as SQuAD.
-    - `TaskForPretraining.py` tasks of NSP ans MLM implementation.
-    - `TaskForChineseNER.py` task of Chinese Named Entity Recognition implementation.
-- `test` test cases of each downstream task.
-- `utils`
-    - `data_helpers.py` is the data preprocessing and dataset building module of each downstream task;
-    - `log_helper.py` is the log printing module.
-    - `creat_pretraining_data.py` used to construct the dataset of  BERT pre-training task.
+### 购买链接：[当当网](http://product.dangdang.com/29447673.html) &nbsp; [京东](https://item.jd.com/13335981.html)
 
-## Python Environment
-Python 3.6 and packages version
+ ## 模型详细解析
+- [x] [1. BERT原理与NSP和MLM](https://www.ylkz.life/deeplearning/p10631450/) <br>
+- [x] [2. 从零实现BERT网络模型](https://www.ylkz.life/deeplearning/p10602241/) 　　　[代码](model/BasicBert)
+- [x] [3. 基于BERT预训练模型的中文文本分类任务](https://www.ylkz.life/deeplearning/p10979382/) 　　　[代码](Tasks/TaskForSingleSentenceClassification.py)
+- [x] [4. 基于BERT预训练模型的英文文本蕴含(MNLI)任务](https://www.ylkz.life/deeplearning/p10407402/) 　　　[代码](Tasks/TaskForPairSentenceClassification.py)
+- [x] [5. 基于BERT预训练模型的英文多选项(SWAG)任务](https://mp.weixin.qq.com/s/GqsbMBNt9XcFIjmumR04Pg) 　　　[代码](Tasks/TaskForMultipleChoice.py)
+- [x] [6. 基于BERT预训练模型的英文问答(SQuAD)任务](https://www.ylkz.life/deeplearning/p10265968/) 　　　[代码](Tasks/TaskForSQuADQuestionAnswering.py)
+- [x] [7. 基于NSP和MLM任务从头训练BERT任务](https://mp.weixin.qq.com/s/2Vtxv1Wj9knEFKUyUeQ_6w) 　　　[代码](Tasks/TaskForPretraining.py)
+- [x] [8. 基于BERT预训练模型的命名体识别任务](https://mp.weixin.qq.com/s/bbeN95mlLaE05dFndUAxgA) 　　　[代码](Tasks/TaskForChineseNER.py)
+
+## 工程结构
+- `bert_base_chinese`目录中是BERT base中文预训练模型以及配置文件
+
+    模型下载地址：https://huggingface.co/bert-base-chinese/tree/main
+- `bert_base_uncased_english`目录中是BERT base英文预训练模型以及配置文件
+
+    模型下载地址：https://huggingface.co/bert-base-uncased/tree/main
+    
+    注意：`config.json`中需要添加`"pooler_type": "first_token_transform"`这个参数
+- `data`目录中是各个下游任务所使用到的数据集
+    - `SingleSentenceClassification`是今日头条的15分类中文数据集；
+    - `PairSentenceClassification`是MNLI（The Multi-Genre Natural Language Inference Corpus, 多类型自然语言推理数据库）数据集；
+    - `MultipeChoice`是SWAG问题选择数据集
+    - `SQuAD`是斯坦福大学开源的问答数据集1.1版本
+    - `WikiText`是维基百科英文语料用于模型预训练
+    - `SongCi`是宋词语料用于中文模型预训练
+    - `ChineseNER`是用于训练中文命名体识别的数据集
+- `model`目录中是各个模块的实现
+    - `BasicBert`中是基础的BERT模型实现模块
+        - `MyTransformer.py`是自注意力机制实现部分；
+        - `BertEmbedding.py`是Input Embedding实现部分；
+        - `BertConfig.py`用于导入开源的`config.json`配置文件；
+        - `Bert.py`是BERT模型的实现部分；
+    - `DownstreamTasks`目录是下游任务各个模块的实现
+        - `BertForSentenceClassification.py`是单标签句子分类的实现部分；
+        - `BertForMultipleChoice.py`是问题选择模型的实现部分；
+        - `BertForQuestionAnswering.py`是问题回答（text span）模型的实现部分；
+        - `BertForNSPAndMLM.py`是BERT模型预训练的两个任务实现部分；
+        - `BertForTokenClassification.py`是字符分类（如：命名体识别）模型的实现部分；
+- `Task`目录中是各个具体下游任务的训练和推理实现
+    - `TaskForSingleSentenceClassification.py`是单标签单文本分类任务的训练和推理实现，可用于普通的文本分类任务；
+    - `TaskForPairSentence.py`是文本对分类任务的训练和推理实现，可用于蕴含任务（例如MNLI数据集）；
+    - `TaskForMultipleChoice.py`是问答选择任务的训练和推理实现，可用于问答选择任务（例如SWAG数据集）；
+    - `TaskForSQuADQuestionAnswering.py`是问题回答任务的训练和推理实现，可用于问题问答任务（例如SQuAD数据集）；
+    - `TaskForPretraining.py`是BERT模型中MLM和NSP两个预训练任务的实现部分，可用于BERT模型预训练；
+    - `TaskForChineseNER.py`是基于BERT模型的命名体任务训练和推理部分的实现；
+- `test`目录中是各个模块的测试案例
+- `utils`是各个工具类的实现
+    - `data_helpers.py`是各个下游任务的数据预处理及数据集构建模块；
+    - `log_helper.py`是日志打印模块；
+    - `creat_pretraining_data.py`是用于构造BERT预训练任务的数据集；
+
+## 环境
+Python版本为3.6，其它相关包的版本如下：
 ```python
 torch==1.5.0
 torchtext==0.6.0
@@ -67,15 +80,14 @@ pandas==1.1.5
 scikit-learn==0.24.0
 tqdm==4.61.0
 ```
-## Usage
-### Step 1. Download Dataset 
-Downloading each dataset and the corresponding BERT pretrained model (if empty) and putting it in the corresponding directory. For details, see the `README.md` file in each data (`data`) directory.
-### Step 2. Runing
-Going to the `Tasks` directory and run the model.
+## 使用方式
+### Step 1. 下载数据 
+下载完成各个数据集以及相应的BERT预训练模型（如果为空），并放入对应的目录中。具体可以查看每个数据（`data`)目录下的`README.md`文件。
+### Step 2. 运行模型 
+进入`Tasks`目录，运行相关模型.
+### 2.1 中文文本分类任务
 
-### 2.1 Chinese text classification task
-
-Model structure and data processing:
+模型结构与数据处理：
 
 <img src="imgs/21102512313.jpg" width="45%">
 
@@ -83,7 +95,7 @@ Model structure and data processing:
 python TaskForSingleSentenceClassification.py
 ```
 
-Result: 
+运行结果:
 
 ```python
 -- INFO: Epoch: 0, Batch[0/4186], Train loss :2.862, Train acc: 0.125
@@ -100,9 +112,9 @@ Result:
 -- INFO: Accurcay on val 0.888
 ```
 
-### 2.2 Text Implication
+### 2.2 英文文本蕴含任务
 
-Model structure and data processing:
+模型结构与数据处理：
 
 <img src="imgs/21103032538.jpg" width="45%">
 
@@ -110,7 +122,7 @@ Model structure and data processing:
 python TaskForPairSentenceClassification.py
 ```
 
-Result:
+运行结果:
 
 ```python
 -- INFO: Epoch: 0, Batch[0/17181], Train loss :1.082, Train acc: 0.438
@@ -127,9 +139,9 @@ Result:
 -- INFO: Accurcay on val 0.830
 ```
 
-### 2.3 Multiple Choice (SWAG) Task
+### 2.3 SWAG多项选择任务
 
-Model structure and data processing:
+模型结构与数据处理：
 
 <img src="imgs/21110834330.jpg" width="50%">
 
@@ -141,7 +153,7 @@ Model structure and data processing:
 python TaskForMultipleChoice.py
 ```
 
-Result:
+运行结果：
 ```python
 [2021-11-11 21:32:50] - INFO: Epoch: 0, Batch[0/4597], Train loss :1.433, Train acc: 0.250
 [2021-11-11 21:32:58] - INFO: Epoch: 0, Batch[10/4597], Train loss :1.277, Train acc: 0.438
@@ -157,9 +169,9 @@ Result:
 [2021-11-11 21:30:52] - INFO: Accuracy on val 0.794
 ```
 
-### 2.4 Question Answering (SQuAD) Task
+### 2.4 SQuAD问题回答任务
 
-Model structure and data processing:
+模型结构与数据处理：
 
 <img src="imgs/22010353470.jpg" width="50%">
 
@@ -172,7 +184,7 @@ Model structure and data processing:
 ```python
 python TaskForSQuADQuestionAnswering.py
 ```
-Result:
+运行结果：
 ```python
 [2022-01-02 14:42:17]缓存文件 ~/BertWithPretrained/data/SQuAD/dev-v1_128_384_64.pt 不存在，重新处理并缓存！
 [2022-01-02 14:42:17] - DEBUG: <<<<<<<<  进入新的example  >>>>>>>>>
@@ -208,9 +220,9 @@ python evaluate-v1.1.py dev-v1.1.json best_result.json
 "exact_match" : 80.879848628193, "f1": 88.338575234135
 ```
 
-### 2.5 NSL and MLM tasks
+### 2.5 NSP与MLM任务训练及推理
 
-Model structure and data processing:
+模型结构与数据处理：
 
 <img src="imgs/22011653159.jpg" width="50%">
 
@@ -230,7 +242,7 @@ if __name__ == '__main__':
     inference(config, sentences_2, masked=False, language='zh')
 ```
 
-Result:
+上述代码运行结束后将会看到类似如下所示的输出结果：
 ```python
 - INFO: ## 成功载入已有模型进行推理……
 - INFO:  ### 原始：我住长江头，君住长江尾。
@@ -243,9 +255,9 @@ Result:
 #   ......
 ```
 
-### 2.6 Named Entity Recognition task
+### 2.6 命名体识别任务训练及推理
 
-Model structure and data processing:
+模型结构与数据处理：
 
 <img src="imgs/22071731070.jpg" width="50%">
 
@@ -261,7 +273,7 @@ if __name__ == '__main__':
     inference(config, sentences)
 ```
 
-Result of training:
+上述代码运行结束后将会看到类似如下所示的输出结果：
 
 ```python
 - INFO: Epoch: [1/10], Batch[620/1739], Train Loss: 0.115, Train acc: 0.96386
@@ -289,7 +301,7 @@ Result of training:
 weighted avg       0.99      0.99      0.99    109657
 ```
 
-Result of inference:
+模型推理结果：
 ```python
 - INFO: 句子：智光拿出石壁拓文为乔峰详述事情始末，乔峰方知自己原本姓萧，乃契丹后族。
 - INFO: 	智光：	PER
@@ -299,4 +311,3 @@ Result of inference:
 - INFO: 	丹：	PER
 ......
 ```
-
