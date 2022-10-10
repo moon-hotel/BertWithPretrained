@@ -8,7 +8,7 @@
 
 ## 数据格式
 
-本目录中的`example_train.json`和`example_dev.json`为训练集和验证集的示例数据，具体介绍可以参加文章[基于BERT预训练模型的英文问答任务](../../README.md)。
+本目录中的`example_train.json`和`example_dev.json`为训练集和验证集的示例数据，具体介绍可以参加文章[基于BERT预训练模型的英文问答任务](../../README-zh-CN.md)。
 同时，`evaluate-v1.1.py`文件是专门用来计算模型预测结果的绝对匹配率和F1值的，其使用方式如下：
 ```python
 python evaluate-v1.1.py example_dev.json example_predictions.json
