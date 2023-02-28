@@ -277,6 +277,8 @@ class BertModel(nn.Module):
                 token_type_ids=None,
                 position_ids=None):
         """
+        ***** 一定要注意，attention_mask中，被mask的Token用1(True)表示，没有mask的用0(false)表示
+        这一点一定一定要注意
         :param input_ids:  [src_len, batch_size]
         :param attention_mask: [batch_size, src_len] mask掉padding部分的内容
         :param token_type_ids: [src_len, batch_size]  # 如果输入模型的只有一个序列，那么这个参数也不用传值
@@ -341,6 +343,7 @@ class BertModel(nn.Module):
                         state_dict[model_paras_names[i]] = new_embedding
                         continue
                 state_dict[model_paras_names[i]] = loaded_paras[loaded_paras_names[i]]
-            logging.info(f"## 注意，正在使用本地MyTransformer中的MyMultiHeadAttention实现")
+            logging.info(f"## 注意，正在使用本地MyTransformer中的MyMultiHeadAttention实现，"
+                         f"如需使用torch框架中的MultiHeadAttention模块可通过config.__dict__['use_torch_multi_head'] = True实现")
         model.load_state_dict(state_dict)
         return model
