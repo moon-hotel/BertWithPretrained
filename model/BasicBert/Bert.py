@@ -207,6 +207,9 @@ class BertPooler(nn.Module):
         :param hidden_states:  [src_len, batch_size, hidden_size]
         :return: [batch_size, hidden_size]
         """
+        if 'pooler_type' not in self.config.__dict__:
+            raise ValueError("pooler_type must be in ['first_token_transform', 'all_token_average']"
+                             "请在配置文件config.json中添加一个pooler_type参数")
         if self.config.pooler_type == "first_token_transform":
             token_tensor = hidden_states[0, :].reshape(-1, self.config.hidden_size)
         elif self.config.pooler_type == "all_token_average":
@@ -313,7 +316,9 @@ class BertModel(nn.Module):
         model = cls(config)  # 初始化模型，cls为未实例化的对象，即一个未实例化的BertModel对象
         pretrained_model_path = os.path.join(pretrained_model_dir, "pytorch_model.bin")
         if not os.path.exists(pretrained_model_path):
-            raise ValueError(f"<路径：{pretrained_model_path} 中的模型不存在，请仔细检查！>")
+            raise ValueError(f"<路径：{pretrained_model_path} 中的模型不存在，请仔细检查！>\n"
+                             f"中文模型下载地址：https://huggingface.co/bert-base-chinese/tree/main\n"
+                             f"英文模型下载地址：https://huggingface.co/bert-base-uncased/tree/main\n")
         loaded_paras = torch.load(pretrained_model_path)
         state_dict = deepcopy(model.state_dict())
         loaded_paras_names = list(loaded_paras.keys())[:-8]
