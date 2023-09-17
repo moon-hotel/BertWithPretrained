@@ -41,9 +41,9 @@ class PositionalEmbedding(nn.Module):
 
 
 class TokenEmbedding(nn.Module):
-    def __init__(self, vocab_size, hidden_size, pad_token_id=0, initializer_range=0.02):
+    def __init__(self, vocab_size, hidden_size, initializer_range=0.02):
         super(TokenEmbedding, self).__init__()
-        self.embedding = nn.Embedding(vocab_size, hidden_size, padding_idx=pad_token_id)
+        self.embedding = nn.Embedding(vocab_size, hidden_size)
         self._reset_parameters(initializer_range)
 
     def forward(self, input_ids):
@@ -100,7 +100,6 @@ class BertEmbeddings(nn.Module):
         super().__init__()
         self.word_embeddings = TokenEmbedding(vocab_size=config.vocab_size,
                                               hidden_size=config.hidden_size,
-                                              pad_token_id=config.pad_token_id,
                                               initializer_range=config.initializer_range)
         # return shape [src_len,batch_size,hidden_size]
 
