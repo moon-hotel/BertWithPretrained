@@ -8,6 +8,7 @@ import os
 from sklearn.model_selection import train_test_split
 import collections
 import six
+import time
 
 
 class Vocab:
@@ -106,6 +107,46 @@ def cache(func):
     return wrapper
 
 
+def process_cache(unique_key=None):
+    """
+    数据预处理结果缓存修饰器
+    :param : unique_key
+    :return:
+    """
+    if unique_key is None:
+        raise ValueError(
+            "unique_key 不能为空, 请指定相关数据集构造类的成员变量，如['top_k', 'cut_words', 'max_sen_len']")
+
+    def decorating_function(func):
+        def wrapper(*args, **kwargs):
+            logging.info(f" ## 索引预处理缓存文件的参数为：{unique_key}")
+            obj = args[0]  # 获取类对象，因为data_process(self, file_path=None)中的第1个参数为self
+            file_path = kwargs['file_path']
+            file_dir = f"{os.sep}".join(file_path.split(os.sep)[:-1])
+            file_name = "".join(file_path.split(os.sep)[-1].split('.')[:-1])
+            paras = f"cache_{file_name}_"
+            for k in unique_key:
+                paras += f"{k}{obj.__dict__[k]}_"  # 遍历对象中的所有参数
+            cache_path = os.path.join(file_dir, paras[:-1] + '.pt')
+            start_time = time.time()
+            if not os.path.exists(cache_path):
+                logging.info(f"缓存文件 {cache_path} 不存在，重新处理并缓存！")
+                data = func(*args, **kwargs)
+                with open(cache_path, 'wb') as f:
+                    torch.save(data, f)
+            else:
+                logging.info(f"缓存文件 {cache_path} 存在，直接载入缓存文件！")
+                with open(cache_path, 'rb') as f:
+                    data = torch.load(f)
+            end_time = time.time()
+            logging.info(f"数据预处理一共耗时{(end_time - start_time):.3f}s")
+            return data
+
+        return wrapper
+
+    return decorating_function
+
+
 class LoadSingleSentenceClassificationDataset:
     def __init__(self,
                  vocab_path='./vocab.txt',  #
@@ -150,14 +191,14 @@ class LoadSingleSentenceClassificationDataset:
         self.max_sen_len = max_sen_len
         self.is_sample_shuffle = is_sample_shuffle
 
-    @cache
-    def data_process(self, filepath, postfix='cache'):
+    @process_cache(unique_key=["max_sen_len"])
+    def data_process(self, file_path=None):
         """
         将每一句话中的每一个词根据字典转换成索引的形式，同时返回所有样本中最长样本的长度
-        :param filepath: 数据集路径
+        :param file_path: 数据集路径
         :return:
         """
-        raw_iter = open(filepath, encoding="utf8").readlines()
+        raw_iter = open(file_path, encoding="utf8").readlines()
         data = []
         max_len = 0
         for raw in tqdm(raw_iter, ncols=80):
@@ -177,18 +218,15 @@ class LoadSingleSentenceClassificationDataset:
                                  val_file_path=None,
                                  test_file_path=None,
                                  only_test=False):
-        postfix = str(self.max_sen_len)
-        test_data, _ = self.data_process(filepath=test_file_path, postfix=postfix)
+        test_data, _ = self.data_process(file_path=test_file_path)
         test_iter = DataLoader(test_data, batch_size=self.batch_size,
                                shuffle=False, collate_fn=self.generate_batch)
         if only_test:
             return test_iter
-        train_data, max_sen_len = self.data_process(filepath=train_file_path,
-                                                    postfix=postfix)  # 得到处理好的所有样本
+        train_data, max_sen_len = self.data_process(file_path=train_file_path)  # 得到处理好的所有样本
         if self.max_sen_len == 'same':
             self.max_sen_len = max_sen_len
-        val_data, _ = self.data_process(filepath=val_file_path,
-                                        postfix=postfix)
+        val_data, _ = self.data_process(file_path=val_file_path)
         train_iter = DataLoader(train_data, batch_size=self.batch_size,  # 构造DataLoader
                                 shuffle=self.is_sample_shuffle, collate_fn=self.generate_batch)
         val_iter = DataLoader(val_data, batch_size=self.batch_size,
