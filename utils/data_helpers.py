@@ -251,14 +251,14 @@ class LoadPairSentenceClassificationDataset(LoadSingleSentenceClassificationData
         super(LoadPairSentenceClassificationDataset, self).__init__(**kwargs)
         pass
 
-    @cache
-    def data_process(self, filepath, postfix='cache'):
+    @process_cache(unique_key=["max_sen_len"])
+    def data_process(self, file_path=None):
         """
         将每一句话中的每一个词根据字典转换成索引的形式，同时返回所有样本中最长样本的长度
         :param filepath: 数据集路径
         :return:
         """
-        raw_iter = open(filepath).readlines()
+        raw_iter = open(file_path).readlines()
         data = []
         max_len = 0
         for raw in tqdm(raw_iter, ncols=80):
@@ -302,9 +302,9 @@ class LoadMultipleChoiceDataset(LoadSingleSentenceClassificationDataset):
         super(LoadMultipleChoiceDataset, self).__init__(**kwargs)
         self.num_choice = num_choice
 
-    @cache
-    def data_process(self, filepath, postfix='cache'):
-        data = pd.read_csv(filepath)
+    @process_cache(unique_key=["max_sen_len"])
+    def data_process(self, file_path):
+        data = pd.read_csv(file_path)
         questions = data['startphrase']
         answers0, answers1 = data['ending0'], data['ending1']
         answers2, answers3 = data['ending2'], data['ending3']
@@ -589,8 +589,8 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
             value_start += 1
             token = tokenizer(origin_context_tokens[value_start])
 
-    @cache
-    def data_process(self, filepath, is_training=False, postfix='cache'):
+    @process_cache(unique_key=["doc_stride", "max_query_length", "max_sen_len"])
+    def data_process(self, file_path, is_training=False):
         """
 
         :param filepath:
@@ -600,7 +600,7 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                   分别对应：[原始样本Id,训练特征id,input_ids，seg，开始，结束，答案文本，问题id,input_tokens,token_to_orig_map]
         """
         logging.info(f"## 使用窗口滑动滑动，doc_stride = {self.doc_stride}")
-        examples = self.preprocessing(filepath, is_training)
+        examples = self.preprocessing(file_path, is_training)
         all_data = []
         example_id, feature_id = 0, 1000000000
         # 由于采用了滑动窗口，所以一个example可能构造得到多个训练样本（即这里被称为feature）；
@@ -732,13 +732,8 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
                                  val_file_path=None,
                                  test_file_path=None,
                                  only_test=True):
-        doc_stride = str(self.doc_stride)
-        max_sen_len = str(self.max_sen_len)
-        max_query_length = str(self.max_query_length)
-        postfix = doc_stride + '_' + max_sen_len + '_' + max_query_length
-        data = self.data_process(filepath=test_file_path,
-                                 is_training=False,
-                                 postfix=postfix)
+        data = self.data_process(file_path=test_file_path,
+                                 is_training=False)
         test_data, examples = data['all_data'], data['examples']
         test_iter = DataLoader(test_data, batch_size=self.batch_size,
                                shuffle=False,
@@ -747,9 +742,8 @@ class LoadSQuADQuestionAnsweringDataset(LoadSingleSentenceClassificationDataset)
             logging.info(f"## 成功返回测试集，一共包含样本{len(test_iter.dataset)}个")
             return test_iter, examples
 
-        data = self.data_process(filepath=train_file_path,
-                                 is_training=True,
-                                 postfix=postfix)  # 得到处理好的所有样本
+        data = self.data_process(file_path=train_file_path,
+                                 is_training=True)  # 得到处理好的所有样本
         train_data, max_sen_len = data['all_data'], data['max_len']
         _, val_data = train_test_split(train_data, test_size=0.3, random_state=2021)
         if self.max_sen_len == 'same':
@@ -953,9 +947,9 @@ class LoadChineseNERDataset(LoadSingleSentenceClassificationDataset):
         if self.entities is None or self.num_labels is None:
             raise ValueError(f"类 {self.__class__.__name__} 中参数 entities 或 num_labels 不能为空！")
 
-    @cache
-    def data_process(self, filepath, postfix='cache'):
-        raw_iter = open(filepath, encoding="utf8").readlines()
+    @process_cache(unique_key=["max_sen_len"])
+    def data_process(self, file_path):
+        raw_iter = open(file_path, encoding="utf8").readlines()
         data = []
         max_len = 0
         tmp_token_ids = []
