@@ -3,6 +3,7 @@ import random
 from tqdm import tqdm
 from .data_helpers import build_vocab
 from .data_helpers import pad_sequence
+from .data_helpers import process_cache
 import torch
 from torch.utils.data import DataLoader
 import os
@@ -131,20 +132,20 @@ class LoadBertPretrainingDataset(object):
         self.random_state = random_state
         random.seed(random_state)
 
-    def get_format_data(self, filepath):
+    def get_format_data(self, file_path):
         """
         本函数的作用是将数据集格式化成标准形式
-        :param filepath:
+        :param file_path:
         :return:  [ [sentence 1, sentence 2, ...], [sentence 1, sentence 2,...],...,[] ]
         """
         if self.data_name == 'wiki2':
-            return read_wiki2(filepath, self.seps)
+            return read_wiki2(file_path, self.seps)
         elif self.data_name == 'custom':
-            return read_custom(filepath)
+            return read_custom(file_path)
             # 在这里，可以调用你自己数据对应的格式化函数，
             # 但是返回格式需要同read_wiki2()保持一致。
         elif self.data_name == 'songci':
-            return read_songci(filepath, self.seps)
+            return read_songci(file_path, self.seps)
         else:
             raise ValueError(f"数据 {self.data_name} 不存在对应的格式化函数，"
                              f"请参考函数 read_wiki(filepath) 实现对应的格式化函数！")
@@ -165,7 +166,7 @@ class LoadBertPretrainingDataset(object):
             # ①先从所有段落中随机出一个段落；
             # ②再从随机出的一个段落中随机出一句话；
             new_next_sentence = next_sentence
-            while next_sentence == new_next_sentence: # 防止随机选择的下一个句子仍旧与之前的相同（尽管概率非常小）
+            while next_sentence == new_next_sentence:  # 防止随机选择的下一个句子仍旧与之前的相同（尽管概率非常小）
                 new_next_sentence = random.choice(random.choice(paragraphs))
             next_sentence = new_next_sentence
             is_next = False
@@ -226,19 +227,20 @@ class LoadBertPretrainingDataset(object):
             token_ids, candidate_pred_positions, num_mlm_preds)
         return mlm_input_tokens_id, mlm_label
 
-    @cache
-    def data_process(self, filepath, postfix='cache'):
+    @process_cache(unique_key=["max_sen_len", "random_state",
+                               "masked_rate", "masked_token_rate", "masked_token_unchanged_rate"])
+    def data_process(self, file_path):
         """
         本函数的作用是是根据格式化后的数据制作NSP和MLM两个任务对应的处理完成的数据
-        :param filepath:
+        :param file_path:
         :return:
         """
-        paragraphs = self.get_format_data(filepath)
+        paragraphs = self.get_format_data(file_path)
         # 返回的是一个二维列表，每个列表可以看做是一个段落（其中每个元素为一句话）
         data = []
         max_len = 0
         # 这里的max_len用来记录整个数据集中最长序列的长度，在后续可将其作为padding长度的标准
-        desc = f" ## 正在构造NSP和MLM样本({filepath.split('.')[1]})"
+        desc = f" ## 正在构造NSP和MLM样本({file_path.split('.')[1]})"
         for paragraph in tqdm(paragraphs, ncols=80, desc=desc):  # 遍历每个
             for i in range(len(paragraph) - 1):  # 遍历一个段落中的每一句话
                 sentence, next_sentence, is_next = self.get_next_sentence_sample(
@@ -316,23 +318,22 @@ class LoadBertPretrainingDataset(object):
                                  val_file_path=None,
                                  test_file_path=None,
                                  only_test=False):
-        postfix = f"_ml{self.max_sen_len}_rs{self.random_state}_mr{str(self.masked_rate)[2:]}" \
-                  f"_mtr{str(self.masked_token_rate)[2:]}_mtur{str(self.masked_token_unchanged_rate)[2:]}"
-        test_data = self.data_process(filepath=test_file_path,
-                                      postfix='test' + postfix)['data']
+        # postfix = f"_ml{self.max_sen_len}_rs{self.random_state}_mr{str(self.masked_rate)[2:]}" \
+        #           f"_mtr{str(self.masked_token_rate)[2:]}_mtur{str(self.masked_token_unchanged_rate)[2:]}"
+        test_data = self.data_process(file_path=test_file_path)['data']
         test_iter = DataLoader(test_data, batch_size=self.batch_size,
                                shuffle=False, collate_fn=self.generate_batch)
         if only_test:
             logging.info(f"## 成功返回测试集，一共包含样本{len(test_iter.dataset)}个")
             return test_iter
-        data = self.data_process(filepath=train_file_path, postfix='train' + postfix)
+        data = self.data_process(file_path=train_file_path)
         train_data, max_len = data['data'], data['max_len']
         if self.max_sen_len == 'same':
             self.max_sen_len = max_len
         train_iter = DataLoader(train_data, batch_size=self.batch_size,
                                 shuffle=self.is_sample_shuffle,
                                 collate_fn=self.generate_batch)
-        val_data = self.data_process(filepath=val_file_path, postfix='val' + postfix)['data']
+        val_data = self.data_process(file_path=val_file_path)['data']
         val_iter = DataLoader(val_data, batch_size=self.batch_size,
                               shuffle=False,
                               collate_fn=self.generate_batch)
