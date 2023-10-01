@@ -20,8 +20,8 @@ if __name__ == '__main__':
     src = src.transpose(0, 1)  # [src_len, batch_size]
     print(f"input shape [src_len,batch_size]: ", src.shape)
     token_type_ids = torch.LongTensor([[0, 0, 0, 1, 1, 1, 1], [0, 0, 1, 1, 1, 0, 0]]).transpose(0, 1)
-    attention_mask = torch.tensor([[True, True, True, True, True, True, True],
-                                   [True, True, True, True, True, False, False]])
+    attention_mask = torch.tensor([[False, False, False, False, False, True, True],
+                                   [False, False, False, False, False, False, True]])
     # attention_mask 实际就是Transformer中指代的key_padding_mask
 
     # ------ BertEmbedding -------
