@@ -218,7 +218,57 @@ def inference(config):
                                  all_result_logits, config.dataset_dir)
 
 
+def interaction(config):
+    bert_tokenize = BertTokenizer.from_pretrained(config.pretrained_model_dir)
+
+    model = BertForQuestionAnswering(config,
+                                     config.pretrained_model_dir)
+    if os.path.exists(config.model_save_path):
+        loaded_paras = torch.load(config.model_save_path)
+        model.load_state_dict(loaded_paras)
+        logging.info("## 成功载入已有模型，开始进行推理......")
+    else:
+        logging.error(" \n ### -----------正在随机初始化一个模型进行测试使用  ------------ ###")
+    while True:
+        desc = input("####: 请输出文本描述：")
+        question = input("####: 请输出问题：")
+
+        # desc = "Architecturally, the school has a Catholic character. Atop the Main Building's gold dome is a"
+        # question = "What is the school's name?"
+        desc_token_ids = bert_tokenize(desc)["input_ids"]
+        question_token_ids = bert_tokenize(question)["input_ids"]
+        input_token = question_token_ids + desc_token_ids[1:]
+        seg = [0] * len(question_token_ids) + [1] * (len(desc_token_ids) - 1)
+        input_tensor = torch.tensor(input_token, dtype=torch.long).reshape(-1, 1)
+        seg_tensor = torch.tensor(seg, dtype=torch.long).reshape(-1, 1)
+
+        start_logits, end_logits = model(input_ids=input_tensor,
+                                         attention_mask=None,
+                                         token_type_ids=seg_tensor,
+                                         position_ids=None)
+
+        start_ids = torch.argsort(start_logits, dim=1).tolist()[0][::-1]
+        end_ids = torch.argsort(end_logits, dim=1).tolist()[0][::-1]
+        pretty_print(bert_tokenize, input_token, start_ids, end_ids)
+
+
+def pretty_print(bert_tokenize, input_token, start_ids, end_ids):
+    # print(input_token)
+    first_sep_idx = input_token.index(102)
+    for start_id in start_ids:
+        for end_id in end_ids:
+            if start_id <= first_sep_idx or end_id <= first_sep_idx or start_id >= end_id \
+                    or start_id >= len(input_token) or end_id >= len(input_token):
+                continue
+            print(start_id, end_id)
+            answer_text_idx = input_token[start_id:(end_id + 1)]
+            answer_text = bert_tokenize.decode(answer_text_idx)
+            print("答案：", answer_text)
+            return
+
+
 if __name__ == '__main__':
     model_config = ModelConfig()
-    train(config=model_config)
-    inference(model_config)
+    # train(config=model_config)
+    # inference(model_config)
+    interaction(model_config)
