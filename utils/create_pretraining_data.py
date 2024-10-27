@@ -29,7 +29,7 @@ def read_wiki2(filepath=None, seps='.'):
             continue
         line = line.strip()
         paragraphs.append([line[0]])
-        for w in line[1:]:
+        for w in line[1:]: # 数据预处理分割时，保留分隔符。同时过滤掉下一句为空时的情况。
             if paragraphs[-1][-1][-1] in seps:
                 paragraphs[-1].append(w)
             else:
