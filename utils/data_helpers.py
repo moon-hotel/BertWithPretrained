@@ -181,8 +181,6 @@ class LoadSingleSentenceClassificationDataset:
         self.PAD_IDX = pad_index
         self.SEP_IDX = self.vocab['[SEP]']
         self.CLS_IDX = self.vocab['[CLS]']
-        # self.UNK_IDX = '[UNK]'
-
         self.batch_size = batch_size
         self.split_sep = split_sep
         self.max_position_embeddings = max_position_embeddings
@@ -958,9 +956,9 @@ class LoadChineseNERDataset(LoadSingleSentenceClassificationDataset):
         tmp_entity = []
         for raw in tqdm(raw_iter, ncols=80):
             line = raw.rstrip("\n").split(self.split_sep)
-            if len(line) != 1 and len(line) != 2:
+            if len(line) != 1 and len(line) != 2: # 例如 [''] 或者 ['人', 'O']，前者表示一句话正常结束的标志
                 raise ValueError(f"数据标注有误{line}")
-            if len(line) == 1:  # 表示得到一个完整的token id样本
+            if len(line) == 1:  # 表示得到一个完整的token id样本，此时的 line 为 ['']
                 if len(tmp_token_ids) > self.max_position_embeddings - 2:
                     tmp_token_ids = tmp_token_ids[:self.max_position_embeddings - 2]
                     tmp_label = tmp_label[:self.max_position_embeddings - 2]
@@ -983,6 +981,7 @@ class LoadChineseNERDataset(LoadSingleSentenceClassificationDataset):
                 tmp_label = []
                 tmp_entity = []
                 continue
+            # 以下4行用于得到一个完整的样本句子，因为原始的训练样本每一行并不是一个样本，而是一个字及其对应的 标签
             tmp_sentence += line[0]
             tmp_token_ids.append(self.vocab[line[0]])
             tmp_label.append(self.entities[line[-1]])

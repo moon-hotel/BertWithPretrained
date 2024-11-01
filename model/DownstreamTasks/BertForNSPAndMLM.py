@@ -164,7 +164,7 @@ class BertForPretrainingModel(nn.Module):
         # nsp_pred_logits： [batch_size, 2]
         if masked_lm_labels is not None and next_sentence_labels is not None:
             loss_fct_mlm = nn.CrossEntropyLoss(ignore_index=0)
-            # MLM任务在构造数据集时pandding部分和MASK部分都是用的0来填充，所以ignore_index需要指定为0
+            # MLM任务在构造数据集时，label的padding部分是用的0来填充，所以ignore_index需要指定为0
             loss_fct_nsp = nn.CrossEntropyLoss()
             # 由于NSP中的分类标签中含有0，上面MLM中的损失指定了ignore_index=0，所以这里需要重新定义一个CrossEntropyLoss
             # 如果MLM任务在padding和MASK中用100之类的来代替，那么两者可以共用一个CrossEntropyLoss

@@ -50,7 +50,8 @@ class BertForQuestionAnswering(nn.Module):
             start_positions.clamp_(0, ignored_index)
             # 如果正确起始位置start_positions中，存在输入样本的开始位置大于输入长度，
             # 那么直接取输入序列的长度作为开始位置
-            end_positions.clamp_(0, ignored_index)
+            end_positions.clamp_(0, ignored_index) #
+            # 限定在 [0, ignored_index]的范围，大于ignored_index的全部置为ignored_index
 
             loss_fct = nn.CrossEntropyLoss(ignore_index=ignored_index)
             # 这里指定ignored_index其实就是为了忽略掉超过输入序列长度的（起始结束）位置
