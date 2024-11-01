@@ -22,7 +22,7 @@ if __name__ == '__main__':
     # examples = data_loader.preprocessing(model_config.train_file_path)
     # print(examples)
 
-    # train_data = data_loader.data_process(filepath=model_config.train_file_path,
+    # train_data = data_loader.data_process(file_path=model_config.train_file_path,
     #                                       is_training=False)  # 得到处理好的所有样本
     train_iter, test_iter, val_iter = data_loader. \
         load_train_val_test_data(test_file_path=model_config.test_file_path,
@@ -52,3 +52,5 @@ if __name__ == '__main__':
             print(f"答案起止：{start_pos, end_pos}")
             print(f"example ID：{b_example_id[i]}")
             print(f"feature ID：{b_feature_id[i]}")
+            break
+        break
