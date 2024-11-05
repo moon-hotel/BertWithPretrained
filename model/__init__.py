@@ -7,3 +7,15 @@ from .DownstreamTasks import BertForPretrainingModel
 from .DownstreamTasks import BertForTokenClassification
 from .BasicBert import BertModel
 from .BasicBert import BertConfig
+
+__all__ = [
+    'BertForSentenceClassification',
+    'BertForMultipleChoice',
+    'BertForQuestionAnswering',
+    'BertForNextSentencePrediction',
+    'BertForMaskedLM',
+    'BertForPretrainingModel',
+    'BertForTokenClassification',
+    'BertModel',
+    'BertConfig'
+]

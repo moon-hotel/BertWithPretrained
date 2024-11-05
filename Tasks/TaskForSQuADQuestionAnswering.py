@@ -2,10 +2,10 @@ import collections
 import sys
 
 sys.path.append('../')
-from model.BasicBert.BertConfig import BertConfig
-from model.DownstreamTasks import BertForQuestionAnswering
-from utils.data_helpers import LoadSQuADQuestionAnsweringDataset
-from utils.log_helper import logger_init
+from model import BertConfig
+from model import BertForQuestionAnswering
+from utils import LoadSQuADQuestionAnsweringDataset
+from utils import logger_init
 from transformers import BertTokenizer
 from transformers import get_scheduler
 import logging
