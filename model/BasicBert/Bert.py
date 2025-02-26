@@ -221,7 +221,8 @@ class BertPooler(nn.Module):
 
 def format_paras_for_torch(loaded_paras_names, loaded_paras):
     """
-    该函数的作用是将预训练参数格式化成符合torch(1.5.0)框架中MultiHeadAttention的参数形式
+    该函数的作用是将预训练参数格式化成符合torch(1.5.0+ )框架中MultiHeadAttention的参数形式
+    torch 2.5.0 测试也是可以使用
     :param loaded_paras_names:
     :param loaded_paras:
     :return:
