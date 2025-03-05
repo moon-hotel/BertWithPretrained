@@ -12,6 +12,7 @@ import logging
 import torch
 import os
 import time
+from tqdm import tqdm
 
 
 class ModelConfig:
@@ -133,7 +134,7 @@ def evaluate(data_iter, model, device, PAD_IDX, inference=False):
     with torch.no_grad():
         acc_sum, n = 0.0, 0
         all_results = collections.defaultdict(list)
-        for batch_input, batch_seg, batch_label, batch_qid, _, batch_feature_id, _ in data_iter:
+        for batch_input, batch_seg, batch_label, batch_qid, _, batch_feature_id, _ in tqdm(data_iter):
             batch_input = batch_input.to(device)  # [src_len, batch_size]
             batch_seg = batch_seg.to(device)
             batch_label = batch_label.to(device)
@@ -205,7 +206,7 @@ def inference(config):
     model = BertForQuestionAnswering(config,
                                      config.pretrained_model_dir)
     if os.path.exists(config.model_save_path):
-        loaded_paras = torch.load(config.model_save_path)
+        loaded_paras = torch.load(config.model_save_path,weights_only=True)
         model.load_state_dict(loaded_paras)
         logging.info("## 成功载入已有模型，开始进行推理......")
     else:
@@ -216,6 +217,11 @@ def inference(config):
                                  data_loader.PAD_IDX, inference=True)
     data_loader.write_prediction(test_iter, all_examples,
                                  all_result_logits, config.dataset_dir)
+    logging.info(f"## 推理完毕, 预测结果已经写入： {config.dataset_dir}")
+    # 运行结束以后会在 SQuAD 数据集所在的目录下生成两个文件 best_result.json 和 best_n_result.json
+    # 然后去该目录下 data/SQuAD 运行 python evaluate-v1.1.py dev-v1.1.json best_result.json
+    # 就可以查看评估结果 {"exact_match": 80.82308420056765, "f1": 88.36083293486375}
+    # 上述结果使用当前 config 中的参数即可，勿需任何修改！
 
 
 def interaction(config):
@@ -269,6 +275,6 @@ def pretty_print(bert_tokenize, input_token, start_ids, end_ids):
 
 if __name__ == '__main__':
     model_config = ModelConfig()
-    # train(config=model_config)
-    # inference(model_config)
-    interaction(model_config)
+    train(config=model_config)
+    inference(model_config)
+    # interaction(model_config)
