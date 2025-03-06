@@ -1,6 +1,6 @@
 import logging
-from ..BasicBert.Bert import BertModel
-from ..BasicBert.Bert import get_activation
+from ..BasicBert import BertModel
+from ..BasicBert import get_activation
 import torch.nn as nn
 import torch
 
@@ -95,7 +95,7 @@ class BertForMaskedLM(nn.Module):
         else:
             self.bert = BertModel(config)
         weights = None
-        if config.use_embedding_weight:
+        if 'use_embedding_weight' in config.__dict__ and config.use_embedding_weight:
             weights = self.bert.bert_embeddings.word_embeddings.embedding.weight
             logging.info(f"## 使用token embedding中的权重矩阵作为输出层的权重！{weights.shape}")
         self.classifier = BertForLMTransformHead(config, weights)
