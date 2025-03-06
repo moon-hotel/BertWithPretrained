@@ -109,9 +109,9 @@ class LoadBertPretrainingDataset(object):
                  is_sample_shuffle=True,
                  random_state=2021,
                  data_name='wiki2',
-                 masked_rate=0.15,
-                 masked_token_rate=0.8,
-                 masked_token_unchanged_rate=0.5,
+                 masked_rate=0.15, # 掩盖掉15%的词
+                 masked_token_rate=0.8, # 15%的80%的替换为[MASK]
+                 masked_token_unchanged_rate=0.5,# 15%的20%的(50%保持不变，50%替换为随机)
                  seps="。"):
         self.tokenizer = tokenizer
         self.seps = seps
