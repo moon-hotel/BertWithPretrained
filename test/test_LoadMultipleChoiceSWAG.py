@@ -1,7 +1,7 @@
 import sys
 
 sys.path.append('../')
-from utils.data_helpers import LoadMultipleChoiceDataset
+from utils import LoadMultipleChoiceDataset
 from Tasks.TaskForMultipleChoice import ModelConfig
 from transformers import BertTokenizer
 

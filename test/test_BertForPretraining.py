@@ -1,9 +1,9 @@
 import sys
 
 sys.path.append('../')
-from model.DownstreamTasks import BertForPretrainingModel
-from model.BasicBert.BertConfig import BertConfig
-from utils.log_helper import logger_init
+from model import BertForPretrainingModel
+from model import BertConfig
+from utils import logger_init
 import logging
 import os
 import torch
@@ -29,7 +29,7 @@ class ModelConfig(object):
 
 def make_data():
     import numpy as np
-    ids = np.random.random_integers(0, 30000, 512 * 3).reshape(3, 512)
+    ids = np.random.random_integers(0, 300, 512 * 3).reshape(3, 512)
     input_ids = torch.tensor(ids).transpose(0, 1)
     labels = np.random.random_integers(0, 1, 512 * 3).reshape(3, 512)
     masked_lm_labels = torch.tensor(labels, dtype=torch.long).transpose(0, 1)  # [src_len,batch_size]

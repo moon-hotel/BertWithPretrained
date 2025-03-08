@@ -58,7 +58,7 @@ def train(config):
     model = BertForQuestionAnswering(config,
                                      config.pretrained_model_dir)
     if os.path.exists(config.model_save_path):
-        loaded_paras = torch.load(config.model_save_path)
+        loaded_paras = torch.load(config.model_save_path,weights_only=True)
         model.load_state_dict(loaded_paras)
         logging.info("## 成功载入已有模型，进行追加训练......")
     model = model.to(config.device)

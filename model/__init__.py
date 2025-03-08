@@ -7,6 +7,14 @@ from .DownstreamTasks import BertForPretrainingModel
 from .DownstreamTasks import BertForTokenClassification
 from .BasicBert import BertModel
 from .BasicBert import BertConfig
+from .BasicBert import BertEmbeddings
+from .BasicBert import BertAttention
+from .BasicBert import BertLayer
+from .BasicBert import BertEncoder
+from .BasicBert import TokenEmbedding
+from .BasicBert import SegmentEmbedding
+from .BasicBert import PositionalEmbedding
+from .BasicBert import MyTransformer
 
 __all__ = [
     'BertForSentenceClassification',
@@ -17,5 +25,13 @@ __all__ = [
     'BertForPretrainingModel',
     'BertForTokenClassification',
     'BertModel',
-    'BertConfig'
+    'BertConfig',
+    'BertEmbeddings',
+    'BertAttention',
+    'BertLayer',
+    'BertEncoder',
+    'TokenEmbedding',
+    'SegmentEmbedding',
+    'PositionalEmbedding',
+    'MyTransformer'
 ]

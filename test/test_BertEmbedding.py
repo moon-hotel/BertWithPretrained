@@ -1,11 +1,11 @@
 import sys
 
 sys.path.append('../')
-from model.BasicBert.BertEmbedding import TokenEmbedding
-from model.BasicBert.BertEmbedding import PositionalEmbedding
-from model.BasicBert.BertEmbedding import SegmentEmbedding
-from model.BasicBert.BertEmbedding import BertEmbeddings
-from model.BasicBert.BertConfig import BertConfig
+from model import TokenEmbedding
+from model import PositionalEmbedding
+from model import SegmentEmbedding
+from model import BertEmbeddings
+from model import BertConfig
 import torch
 
 if __name__ == '__main__':

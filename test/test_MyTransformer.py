@@ -1,7 +1,7 @@
 import sys
 
 sys.path.append('../')
-from model.BasicBert.MyTransformer import MyTransformer
+from model import MyTransformer
 import torch
 
 if __name__ == '__main__':

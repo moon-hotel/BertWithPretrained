@@ -1,11 +1,11 @@
 import sys
 
 sys.path.append('../')
-from utils.log_helper import logger_init
+from utils import logger_init
 import logging
 from transformers import BertTokenizer
 import os
-from utils.create_pretraining_data import LoadBertPretrainingDataset
+from utils import LoadBertPretrainingDataset
 
 
 class ModelConfig:

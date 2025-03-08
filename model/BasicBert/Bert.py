@@ -320,7 +320,7 @@ class BertModel(nn.Module):
             raise ValueError(f"<路径：{pretrained_model_path} 中的模型不存在，请仔细检查！>\n"
                              f"中文模型下载地址：https://huggingface.co/bert-base-chinese/tree/main\n"
                              f"英文模型下载地址：https://huggingface.co/bert-base-uncased/tree/main\n")
-        loaded_paras = torch.load(pretrained_model_path)
+        loaded_paras = torch.load(pretrained_model_path,weights_only=True)
         state_dict = deepcopy(model.state_dict())
         loaded_paras_names = list(loaded_paras.keys())[:-8]
         model_paras_names = list(state_dict.keys())[1:]

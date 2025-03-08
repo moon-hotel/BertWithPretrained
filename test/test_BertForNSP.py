@@ -1,9 +1,9 @@
 import sys
 
 sys.path.append('../')
-from model.DownstreamTasks import BertForNextSentencePrediction
-from model.BasicBert.BertConfig import BertConfig
-from utils.log_helper import logger_init
+from model import BertForNextSentencePrediction
+from model import BertConfig
+from utils import logger_init
 import logging
 import os
 import torch

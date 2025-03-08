@@ -1,12 +1,12 @@
 import sys
 
 sys.path.append('../')
-from utils.log_helper import logger_init
+from utils import logger_init
 import logging
 from transformers import BertTokenizer
 from model import BertConfig
 import os
-from utils.data_helpers import LoadChineseNERDataset
+from utils import LoadChineseNERDataset
 import torch
 
 

@@ -1,8 +1,8 @@
 import sys
 
 sys.path.append('../')
-from model.DownstreamTasks.BertForSentenceClassification import BertForSentenceClassification
-from model.BasicBert.BertConfig import BertConfig
+from model import BertForSentenceClassification
+from model import BertConfig
 import torch
 # from torch.utils.tensorboard import SummaryWriter
 

@@ -1,7 +1,7 @@
 import sys
 
 sys.path.append('../')
-from model.BasicBert.BertConfig import BertConfig
+from model import BertConfig
 
 if __name__ == '__main__':
     json_file = '../bert_base_chinese/config.json'

@@ -41,7 +41,7 @@ class ModelConfig:
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.model_save_dir = os.path.join(self.project_dir, 'cache')
         self.logs_save_dir = os.path.join(self.project_dir, 'logs')
-        self.model_save_path = os.path.join(self.model_save_dir, f'model_{self.data_name}.bin')
+        self.model_save_path = os.path.join(self.model_save_dir, f'model_{self.data_name}.pt')
         self.writer = SummaryWriter(f"runs/{self.data_name}")
         self.is_sample_shuffle = True
         self.use_embedding_weight = True

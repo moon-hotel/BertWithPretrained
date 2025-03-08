@@ -1,12 +1,12 @@
 import sys
 
 sys.path.append('../')
-from model.BasicBert.BertEmbedding import BertEmbeddings
-from model.BasicBert.Bert import BertAttention
-from model.BasicBert.Bert import BertLayer
-from model.BasicBert.Bert import BertEncoder
-from model.BasicBert.Bert import BertModel
-from model.BasicBert.BertConfig import BertConfig
+from model import BertEmbeddings
+from model import BertAttention
+from model import BertLayer
+from model import BertEncoder
+from model import BertModel
+from model import BertConfig
 import torch
 from utils.log_helper import logger_init
 

@@ -1,7 +1,7 @@
 import sys
 
 sys.path.append('../')
-from utils.data_helpers import LoadSQuADQuestionAnsweringDataset
+from utils import LoadSQuADQuestionAnsweringDataset
 from transformers import BertTokenizer
 from Tasks.TaskForSQuADQuestionAnswering import ModelConfig
 

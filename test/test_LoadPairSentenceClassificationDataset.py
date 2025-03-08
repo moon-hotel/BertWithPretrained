@@ -2,7 +2,7 @@ import sys
 
 sys.path.append('../')
 from Tasks.TaskForPairSentenceClassification import ModelConfig
-from utils.data_helpers import LoadPairSentenceClassificationDataset
+from utils import LoadPairSentenceClassificationDataset
 from transformers import BertTokenizer
 
 if __name__ == '__main__':

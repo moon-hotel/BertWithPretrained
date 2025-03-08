@@ -2,7 +2,7 @@ import sys
 
 sys.path.append('../')
 from Tasks.TaskForSingleSentenceClassification import ModelConfig
-from utils.data_helpers import LoadSingleSentenceClassificationDataset
+from utils import LoadSingleSentenceClassificationDataset
 from transformers import BertTokenizer
 
 if __name__ == '__main__':
