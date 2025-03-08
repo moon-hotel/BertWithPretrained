@@ -69,17 +69,10 @@
     - `creat_pretraining_data.py`是用于构造BERT预训练任务的数据集；
 
 ## 环境
-Python版本为3.6，其它相关包的版本如下：
-```python
-torch==1.5.0
-torchtext==0.6.0
-torchvision==0.6.0
-transformers==4.5.1
-numpy==1.19.5
-pandas==1.1.5
-scikit-learn==0.24.0
-tqdm==4.61.0
-```
+
+Python版本为3.12, PyTorch 2.4.0+cu121,  CUDA 版本 12.1, 请按照 requirements.txt 安装即可。
+
+
 ## 使用方式
 ### Step 1. 下载数据 
 下载完成各个数据集以及相应的BERT预训练模型（如果为空），并放入对应的目录中。具体可以查看每个数据（`data`)目录下的`README.md`文件。
