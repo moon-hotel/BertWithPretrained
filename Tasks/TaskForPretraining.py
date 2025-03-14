@@ -27,6 +27,7 @@ class ModelConfig:
         # self.val_file_path = os.path.join(self.dataset_dir, 'wiki.valid.tokens')
         # self.test_file_path = os.path.join(self.dataset_dir, 'wiki.test.tokens')
         # self.data_name = 'wiki2'
+        # self.eps = '.'
 
         # ========== songci 数据集相关配置
         self.dataset_dir = os.path.join(self.project_dir, 'data', 'SongCi')
@@ -35,6 +36,7 @@ class ModelConfig:
         self.val_file_path = os.path.join(self.dataset_dir, 'songci.valid.txt')
         self.test_file_path = os.path.join(self.dataset_dir, 'songci.test.txt')
         self.data_name = 'songci'
+        self.seps = "。"
 
         # 如果需要切换数据集，只需要更改上面的配置即可
         self.vocab_path = os.path.join(self.pretrained_model_dir, 'vocab.txt')
@@ -97,7 +99,8 @@ def train(config):
                                              data_name=config.data_name,
                                              masked_rate=config.masked_rate,
                                              masked_token_rate=config.masked_token_rate,
-                                             masked_token_unchanged_rate=config.masked_token_unchanged_rate)
+                                             masked_token_unchanged_rate=config.masked_token_unchanged_rate,
+                                             seps=config.seps)
     train_iter, test_iter, val_iter = \
         data_loader.load_train_val_test_data(test_file_path=config.test_file_path,
                                              train_file_path=config.train_file_path,
@@ -241,7 +244,8 @@ def inference(config, sentences=None, masked=False, language='en', random_state=
                                              tokenizer=bert_tokenize,
                                              pad_index=config.pad_index,
                                              random_state=config.random_state,
-                                             masked_rate=0.15)  # 15% Mask掉
+                                             masked_rate=0.15,
+                                             seps=config.seps)  # 15% Mask掉
     token_ids, pred_idx, mask = data_loader.make_inference_samples(sentences,
                                                                    masked=masked,
                                                                    language=language,
