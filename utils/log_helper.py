@@ -13,7 +13,7 @@ def logger_init(log_file_name='monitor',
         os.makedirs(log_dir)
 
     log_path = os.path.join(log_dir, log_file_name + '_' + str(datetime.now())[:10] + '.txt')
-    formatter = '[%(asctime)s] - %(levelname)s: %(message)s'
+    formatter = '[%(asctime)s] - [%(filename)s][%(lineno)s] -%(levelname)s: %(message)s'
     if only_file:
         logging.basicConfig(filename=log_path,
                             level=log_level,
