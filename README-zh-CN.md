@@ -12,11 +12,19 @@
 
 <img src="imgs/banner.jpg" width="90%">
 
-### 坚持的力量！《跟我一起学机器学习》上市了! 送礼65份！
-
 ### 购买链接：[当当网](http://product.dangdang.com/29447673.html) &nbsp; [京东](https://item.jd.com/13335981.html)
 
+
+
+<img src="imgs/dlwm.jpg" width="90%">
+
+### 购买链接：[当当网](https://product.dangdang.com/29878099.html) &nbsp; [京东](https://item.jd.com/14427641.html)
+
+
+
+
 ### Transformer 系列视频讲解地址：https://space.bilibili.com/392219165/lists/4900590?type=season
+### Bert 系列视频讲解地址：https://space.bilibili.com/392219165/lists/5178647?type=season
 
  ## 模型详细解析
 - [x] [1. BERT原理与NSP和MLM](https://www.ylkz.life/deeplearning/p10631450/) <br>
